@@ -3,6 +3,7 @@
 #include <math.h>
 #include <string.h>
 #include "init.h"
+#include "graph.h"
 // #include "prop.h"
 
 double calc_r2(double **y, double **o, int b_size, int v_dim);
@@ -14,10 +15,18 @@ int main(int argc, char **argv) {
     double alpha = 0.00001;
 
     // コマンドラインから分析したいファイル名を読み込む
-    char *filename = argv[1];
-    FILE *fp = fopen(filename, "r");
+    char *filename_data = argv[1];
+    FILE *fp = fopen(filename_data, "r");
     if (fp == NULL) {
-        printf("Cannot open %s\n", filename);
+        printf("Cannot open %s\n", filename_data);
+        exit(1);
+    }
+
+    // コマンドラインから分析の過程の出力先のファイルを読み込む
+    char *filename_log = argv[2];
+    FILE *fp_log = fopen(filename_log, "w");
+    if (fp_log == NULL) {
+        printf("Cannot open %s\n", filename_log);
         exit(1);
     }
 
@@ -74,6 +83,8 @@ int main(int argc, char **argv) {
             col++;
         }
     }
+    // logファイルに目的変数名を書き込む
+    fprintf(fp_log, "objective variable : %s.\n", objective);
 
     // 説明変数名の取得
     // 説明変数の変数名を一つずつコマンドラインに書き込むよう指示する
@@ -187,6 +198,25 @@ int main(int argc, char **argv) {
         scanf("%[^\n]%*1[\n]", explanatory);   
         printf("You input %s.\n", explanatory);
     }   // while (strcmp(explanatory, "") != 0) の終わり(説明変数の入力の終わり)
+    // logファイルに説明変数名を書き込む
+    fprintf(fp_log, "explanatory variables : ");
+    // o_colの要素に対応する変数名をfpの1行目から取得して書き込むとともに、リスト"explanatory_list"にも格納する
+    char **explanatory_list = (char **)malloc(sizeof(char *) * o_dim);
+    for (int i = 0; i < o_dim; i++) {
+        fseek(fp, 0, SEEK_SET);
+        fgets(buf, sizeof(buf), fp);
+        token = strtok(buf, ";\n");
+        col = 0;
+        while (token != NULL) {
+            if (col == o_col[i]) {
+                fprintf(fp_log, "%s ", token);
+                explanatory_list[i] = (char *)malloc(sizeof(char) * strlen(token));
+                strcpy(explanatory_list[i], token);
+            }
+            token = strtok(NULL, ";\n");
+            col++;
+        }
+    }
 
     // 目的変数と説明変数の列番号を表示し、ニューラルネットワークの設計を開始すると宣言する
     printf("The column number of the objective variable is %d.\n", v_col);
@@ -226,18 +256,25 @@ int main(int argc, char **argv) {
     fseek(fp, 0, SEEK_SET);
     fgets(buf, sizeof(buf), fp);    // この時点でfpは2行目を指している(データの1行目を読み飛ばした)
     printf("The number of data is %d.\n", data_size);
+    fprintf(fp_log, "The total number of data : %d.\n", data_size);
 
     // バッチサイズとイテレーション数をコマンドラインから読み込む
     printf("Input the batch size and the number of iterations: ");
     int b_size; // バッチサイズ
     int iter;   // イテレーション数
     scanf("%d %d", &b_size, &iter);
+
     printf("The batch size is %d.\n", b_size);
+    fprintf(fp_log, "The batch size : %d.\n", b_size);
+
     printf("The number of iterations is %d.\n", iter);
+    fprintf(fp_log, "The number of iterations : %d.\n", iter);
+
     int test_size = data_size - b_size * iter;   // テストデータのサイズ
     int test_iter = (int) (test_size / b_size);  // テストデータのイテレーション数
     // int test_iter = 1;
     printf("So, the size of test data is %d.\n", b_size * test_iter);
+    fprintf(fp_log, "The size of test data : %d.\n", b_size * test_iter);
 
     double test_scores[iter+1]; // テストデータのスコアを格納する配列
 
@@ -260,6 +297,9 @@ int main(int argc, char **argv) {
     neural_network = push_network_back(o_layer, v_layer, neural_network);    // 第 D+1 層まで初期化されたニューラルネットワークを表す構造体の線形リストができた
     printf("The neural network has been initialized.\n");
     // ここまでエラーなし 12/30 22:25
+
+    // ニューラルネットワークをネットワークグラフで表示する
+    print_network(neural_network, fp_log);
 
     // テストデータの読み込み
     // テストデータの説明変数の値を```x```、目的変数の値を```y```に、それぞれ二次元配列のサイズを拡張した上で格納する
@@ -338,7 +378,7 @@ int main(int argc, char **argv) {
         // ここまでエラーなし 12/30 22:27
 
         // 順伝播を行う
-        neural_network = forward_prop(x, y, neural_network, leakly_relu, leakly_relu_grad);
+        neural_network = forward_prop(fp_log, x, y, neural_network, leakly_relu, leakly_relu_grad);
         printf("The forward propagation of iteration %d has been completed.\n", iter_num+1);
         // printf("neural_network is at %dth layer.\n", neural_network -> o_layer -> k);
 
@@ -365,7 +405,7 @@ int main(int argc, char **argv) {
         // ここまでエラーなし 12/30 22:53
 
         // 誤差逆伝播を行いニューラルネットワークを更新する
-        neural_network = back_prop(neural_network, alpha, b_size);
+        neural_network = back_prop(fp_log, neural_network, alpha, b_size);
         printf("The back propagation of iteration %d has been completed.\n", iter_num+1);
 
         // 1イテレーションごとの決定係数を計算し表示する
@@ -419,7 +459,7 @@ int main(int argc, char **argv) {
     }
     // テストデータをバッチサイズ分の行ずつ読み込んで、順伝播を行い、出力の推定量を二次元配列に格納する
     for (int iter_num = 0; iter_num < test_iter; iter_num++) {
-        neural_network = forward_prop(&x_test[iter_num*b_size], &y_test[iter_num*b_size], neural_network, leakly_relu, leakly_relu_grad);
+        neural_network = forward_prop(fp_log, &x_test[iter_num*b_size], &y_test[iter_num*b_size], neural_network, leakly_relu, leakly_relu_grad);
         // for (int b = 0; b < b_size; b++) {
         //     for (int i = 0; i < v_dim; i++) {
         //         y_hat[iter_num*b_size+b][i] = neural_network -> v_layer -> neuron_2darray[b][i].o;

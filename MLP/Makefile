@@ -6,10 +6,13 @@ all: src/adv_regression.c src/init.c
 	make adv_regression.o
 	make lib
 	make demo
-	make do
+	make sample
 
 do: bin/demo
-	bin/demo wine+quality/winequality-red.csv
+	bin/demo wine+quality/winequality-red.csv log/demo.txt
+
+sample: bin/demo
+	bin/demo sample.txt log/sample_output.txt
 
 demo: lib/libadv_regression.a
 	$(CC) -o bin/demo -L./lib -ladv_regression

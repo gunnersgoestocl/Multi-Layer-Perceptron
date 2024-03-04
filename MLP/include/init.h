@@ -56,7 +56,7 @@ void free_network(network_1layer *neural_network);
 //     - 第 $D+1$ ニューロン層への入力値```v```から第 $D+1$ ニューロン層の出力値```o```を返す(この時は```v```と```o```は同じ値でこれが出力の推定量となる)
 //       - 代わりに、目的変数値のベクトル```y```を元に、第 $D+1$ ニューロン層の```delta```に、各データごと($0 <= b < b_size$)に```o```と```y```の差をとったものを代入する
 
-network_1layer *forward_prop(double **x, double **y, network_1layer *neural_network, double (*activator)(double), double (*activator_grad)(double));
+network_1layer *forward_prop(FILE *fp_log, double **x, double **y, network_1layer *neural_network, double (*activator)(double), double (*activator_grad)(double));
 
 // 6. 関数```back_prop```を定義する
 //    - 誤差逆伝播を行い```neural_network```を更新する
@@ -70,7 +70,10 @@ network_1layer *forward_prop(double **x, double **y, network_1layer *neural_netw
 //      - 第 $1$ ネットワーク層の行列成分の更新で、全体の更新を終える
 //    - 線形リストの先頭のネットワーク層構造体へのポインタを返す
 
-network_1layer *back_prop(network_1layer *neural_network, double alpha, int b_size);
+network_1layer *back_prop(FILE *fp_log, network_1layer *neural_network, double alpha, int b_size);
+
+//ニューラルネットワークを表す構造体へのポインタ、ネットワークの格納する値をグラフに可視化して出力するファイルのポインタを引数に取る
+void print_network(network_1layer *neural_network, FILE *fp_log);
 
 double leakly_relu(double v);
 double leakly_relu_grad(double v);
