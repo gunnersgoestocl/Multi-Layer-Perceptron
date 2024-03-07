@@ -1,5 +1,6 @@
 CC = gcc # C compiler
 AR = ar # archiver
+TODAY   = $(shell date "+%Y%m%d%H%M%S")
 
 all: src/adv_regression.c src/init.c
 	make init.o
@@ -12,7 +13,7 @@ do: bin/demo
 	bin/demo wine+quality/winequality-red.csv log/demo.txt
 
 sample: bin/demo
-	bin/demo sample.txt log/sample_output.txt
+	bin/demo sample.txt log/sample_output_$(TODAY).txt log/sample_output_graph_$(TODAY)/sample_output_graph_$(TODAY)
 
 demo: lib/libadv_regression.a
 	$(CC) -o bin/demo -L./lib -ladv_regression
