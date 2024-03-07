@@ -152,7 +152,7 @@ void free_network(network_1layer *neural_network) {
 
 network_1layer *forward_prop(FILE *fp_log, double **x, double **y, network_1layer *neural_network, double (*activator)(double), double (*activator_grad)(double)) {
 
-    fprintf(fp_log,"==============<<forward_prop>>=================\n");
+    fprintf(fp_log,"\n==============<<forward_prop>>=================\n");
     // 第0層の入力値vをxに設定
     for (int b = 0; b < (neural_network -> o_layer) -> b_size; b++) {
         for (int i = 0; i < neural_network -> o_dim; i++) {
@@ -237,6 +237,7 @@ network_1layer *forward_prop(FILE *fp_log, double **x, double **y, network_1laye
     }
     fprintf(fp_log, "calculating delta of the %dth layer is completed\n", neural_network -> v_layer -> k);
     print_network(neural_network, fp_log);
+    //fprintf(fp_log, "neural_network is at %dth layer.\n", neural_network -> v_layer -> k); // デバグコード
 
     return neural_network;  // 線形リストの末尾へのポインタを返す
 }
@@ -256,7 +257,7 @@ network_1layer *forward_prop(FILE *fp_log, double **x, double **y, network_1laye
 //    - 線形リストの先頭のネットワーク層構造体へのポインタを返す
 
 network_1layer *back_prop(FILE *fp_log, network_1layer *neural_network, double alpha, int b_size) {
-    fprintf(fp_log, "===============<<back_prop>>================\n");
+    fprintf(fp_log, "\n===============<<back_prop>>================\n");
 
     // 第D+1層の行列成分Uを更新
     for (int i = 0; i < neural_network -> o_dim; i++) {
@@ -344,7 +345,7 @@ network_1layer *back_prop(FILE *fp_log, network_1layer *neural_network, double a
                 if (fabs(neural_network -> o_layer -> neuron_2darray[b][i].delta) <= 0.00001) {
                     (neural_network -> o_layer -> neuron_2darray[b][i].delta) = 0.0;
                 } else if (fabs(neural_network -> o_layer -> neuron_2darray[b][i].delta) >= 1000000) {
-                    fprintf(fp_log, "delta of the %dth layer is too large. Please re-design neural network!\n", neural_network -> o_layer -> k);
+                    fprintf(fp_log, "delta of the %dth layer is too large. Please re-design neural network or learning rate!\n", neural_network -> o_layer -> k);
                     exit(1);
                 }
             }
@@ -352,7 +353,9 @@ network_1layer *back_prop(FILE *fp_log, network_1layer *neural_network, double a
         fprintf(fp_log, "updating delta of the %dth layer is completed\n", neural_network -> o_layer -> k);
         print_network(neural_network, fp_log);
     }
-    printf("updating U and delta of the 2nd layer is completed\n");
+    fprintf(fp_log, "updating U and delta of the 2nd layer is completed\n");
+    // fprintf(fp_log, "neural_network is at %dth layer.\n", neural_network -> o_layer -> k); // デバグコード
+    neural_network = neural_network -> prev;    // 学習が進まないバグを解消するため追加 2024/03/07
 
     // 第1ネットワーク層の行列成分Uを更新
     for (int i = 0; i < neural_network -> o_dim; i++) {
@@ -369,7 +372,7 @@ network_1layer *back_prop(FILE *fp_log, network_1layer *neural_network, double a
         }
     }
     fprintf(fp_log, "updating U of the 1st layer is completed\n");
-
+    // fprintf(fp_log, "neural_network is at %dth layer.\n", neural_network -> o_layer -> k); // デバグコード
     return neural_network;
 }
 
@@ -381,8 +384,8 @@ void print_network(network_1layer *neural_network, FILE *fp_log){
 
     // 線形リストの先頭から末尾まで走破する
     int i = 0;
-    network_1layer *p = neural_network;
-
+    // 線形リストの先頭に戻す
+    network_1layer *p = rewind_network(neural_network);
     while(p != NULL){
         fprintf(fp_log, "[neuron layer %d (dim = %d)]\n", i, p->o_dim);
 
@@ -448,7 +451,7 @@ void print_network(network_1layer *neural_network, FILE *fp_log){
         // 出力層の手前のネットワーク層に到達したら、出力層も表示して終了
         if (p->next == NULL){
             // break;
-            fprintf(fp_log, "[neuron layer %d (dim = %d)]\n", i, p->v_dim);
+            fprintf(fp_log, "[neuron layer %d (dim = %d)]\n", i+1, p->v_dim);
             // ニューロン層への入力値を表示
             fprintf(fp_log, "-------input value--------\n");
             //int j = 0;
@@ -470,8 +473,31 @@ void print_network(network_1layer *neural_network, FILE *fp_log){
                 }
                 fprintf(fp_log, "\n");
             }
+            fprintf(fp_log, "\n");
+            // ニューロン層のdelAを表示
+            fprintf(fp_log, "-------delA (gradient of activator)--------\n");
+            //int j = 0;
+            for (int j = 0; j < p->v_dim; j++){
+                int k = 0;
+                for (k = 0; k < p->v_layer->b_size;k++){
+                    fprintf(fp_log, "%4.4f ", (p->v_layer->neuron_2darray)[k][j].delA);
+                }
+                fprintf(fp_log, "\n");
+            }
+            fprintf(fp_log, "\n");
+            // ニューロン層のdeltaを表示
+            fprintf(fp_log, "-------delta --------\n");
+            for (int j = 0; j < p->v_dim; j++){
+                int k = 0;
+                for (k = 0; k < p->v_layer->b_size;k++){
+                    fprintf(fp_log, "%4.4f ", (p->v_layer->neuron_2darray)[k][j].delta);
+                }
+                fprintf(fp_log, "\n");
+            }
+            fprintf(fp_log, "\n");
+
             // fprintf(fp_log, "\n");
-            fprintf(fp_log,"----------------------------\n");
+            fprintf(fp_log,"\n==========----------------------------==========\n\n");
             break;
         }
         else{

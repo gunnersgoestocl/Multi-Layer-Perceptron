@@ -30,6 +30,14 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
+    // コマンドラインから学習における精度の推移を出力するファイルを読み込む
+    char *filename_graph = argv[3];
+    FILE *fp_graph = popen("gnuplot", "w");
+    fprintf(fp_graph, "set terminal png\n");
+    fprintf(fp_graph, "set output \"%s\"\n", filename_graph);
+    fprintf(fp_graph, "setyrange[-300.0:1.0]\n");
+    // fprintf(fp_graph, "plot '-' with lines linetype 1 title \"sin\"\n");
+
     // ファイルの1行目を';'で区切って、変数名を読み込み表示する
     char buf[256];
     fgets(buf, sizeof(buf), fp);
@@ -39,7 +47,8 @@ int main(int argc, char **argv) {
         token = strtok(NULL, ";\n");
     }
 
-    // 目的変数名の取得
+    // <<<<<<<<<<<<<<<<<目的変数名の取得>>>>>>>>>>>>>>>>>
+
     // 目的変数の変数名をコマンドラインに書き込むよう指示する
     printf("Input the name of the objective variable: ");
     char objective[256];
@@ -86,7 +95,8 @@ int main(int argc, char **argv) {
     // logファイルに目的変数名を書き込む
     fprintf(fp_log, "objective variable : %s.\n", objective);
 
-    // 説明変数名の取得
+    // <<<<<<<<<<<<<<<<<<<<説明変数名の取得>>>>>>>>>>>>>>>>>>>>>
+
     // 説明変数の変数名を一つずつコマンドラインに書き込むよう指示する
     // ALLと書いてEnterを押すと、目的変数以外全ての列を説明変数として処理する
     // 何も書かずにEnterを押すと、説明変数の入力を終了する     
@@ -227,7 +237,8 @@ int main(int argc, char **argv) {
     printf(".\n");
     printf("Start designing the neural network.\n");
 
-    // ニューラルネットワークの設計
+    // <<<<<<<<ニューラルネットワークの設計>>>>>>>>>>>>>
+
     // ニューラルネットワークの層の数、各層のニューロンの個数をスペース区切りでコマンドラインから読み込む
     printf("Input the number of layers and the number of neurons in each layer: ");
     int D;  // ニューラルネットワークの層の数
@@ -245,6 +256,15 @@ int main(int argc, char **argv) {
         printf("    %2d middle layer: %3d\n", i+1, N[i]);
     }
     printf("    output layer: %7d\n", v_dim);   // 今回は出力層のニューロンは1つとあらかじめて決めてしまう
+
+    // <<<<<<<<<<<<学習の仕方の設定>>>>>>>>>>>>>
+
+    // 学習率の取得
+    printf("Input the learning rate: ");
+    scanf("%lf", &alpha);
+    printf("The learning rate is %f.\n", alpha);
+    fprintf(fp_log, "The learning rate : %f.\n", alpha);
+
     printf("Now Loading Data File...\n");
 
     // データサイズの取得
@@ -278,8 +298,17 @@ int main(int argc, char **argv) {
 
     double test_scores[iter+1]; // テストデータのスコアを格納する配列
 
-    // 交差検証開始
-    for (int epoch = 0; epoch < iter+1; epoch++) {  
+    // エポック数を取得する
+    int total_epoch;
+    printf("Input the total number of epochs: ");
+    scanf("%d", &total_epoch);
+    printf("The total number of epochs is %d.\n", total_epoch);
+    fprintf(fp_log, "The total number of epochs : %d.\n", total_epoch);
+
+    // <<<<<<<<<<<<<<データの読み込みと学習>>>>>>>>>>>>>>>
+
+    // 交差検証開始(CRVL は交差検証の何フェーズ目かを表す)
+    for (int CRVL = 0; CRVL < iter+1; CRVL++) {  
     
     // ニューラルネットワークを初期化する
     // ニューラルネットワークの層を表す構造体の線形リストの先頭へのポインタを作る
@@ -295,7 +324,7 @@ int main(int argc, char **argv) {
     // ニューラルネットワークの出力層を表すニューロン層を作る
     neuron_layer *v_layer = init_neuron_layer(D+1, v_dim, b_size);
     neural_network = push_network_back(o_layer, v_layer, neural_network);    // 第 D+1 層まで初期化されたニューラルネットワークを表す構造体の線形リストができた
-    printf("The neural network has been initialized.\n");
+    fprintf(fp_log, "The neural network has been initialized.\n");
     // ここまでエラーなし 12/30 22:25
 
     // ニューラルネットワークをネットワークグラフで表示する
@@ -310,13 +339,23 @@ int main(int argc, char **argv) {
         y_test[b] = (double *)malloc(sizeof(double) * v_dim);
     }
     int test_flag = 0;  // テストデータの読み込みが完了したら1にする
-    printf("The test data has been initialized.\n");
+    fprintf(fp_log, "The test data has been initialized.\n");
 
     // データを読み込んでニューラルネットワークを学習させる
+
+    // エポックループ
+    for (int epoch=0; epoch < total_epoch; epoch++) {
+        fprintf(fp_log, "\n===================================================\n");
+        fprintf(fp_log, "The epoch %d has started.\n", epoch+1);
+
+        // 訓練データに対する決定係数の推移を追うための配列を初期化する
+        double *r2_epoch = (double *)malloc(sizeof(double) * total_epoch);
+
+    // ミニバッチを取り出し、順伝播、誤差逆伝播を行う
     for (int iter_num = 0; iter_num<iter; iter_num++) {
 
-        // テストデータの読み込み
-        if (iter_num == epoch && test_flag == 0) {
+        // テストデータの読み込み(データセットの最後の部分をテストデータにしない場合)
+        if (iter_num == CRVL && test_flag == 0) {
             // テストデータの説明変数の値を```x```、目的変数の値を```y```に格納する
             for (int b = 0; b < b_size*test_iter; b++) {
                 fgets(buf, sizeof(buf), fp);
@@ -335,7 +374,7 @@ int main(int argc, char **argv) {
                     col++;
                 }
             }   // 1バッチのデータ読み込み完了
-            printf("The test data has been loaded.\n");
+            fprintf(fp_log, "The test data has been loaded.\n");
             test_flag = 1;
             iter_num--;
         }
@@ -367,7 +406,7 @@ int main(int argc, char **argv) {
                 col++;
             }
         }   // 1バッチのデータ読み込み完了
-        printf("The data of iteration %d has been loaded.\n", iter_num+1);
+        fprintf(fp_log, "The data of epoch %d iteration %d has been loaded.\n", epoch+1, iter_num+1);
         // // xの値を表示する
         // for (int b = 0; b < b_size; b++) {
         //     for (int i = 0; i < o_dim; i++) {
@@ -379,8 +418,8 @@ int main(int argc, char **argv) {
 
         // 順伝播を行う
         neural_network = forward_prop(fp_log, x, y, neural_network, leakly_relu, leakly_relu_grad);
-        printf("The forward propagation of iteration %d has been completed.\n", iter_num+1);
-        // printf("neural_network is at %dth layer.\n", neural_network -> o_layer -> k);
+        fprintf(fp_log, "The forward propagation of epoch %d iteration %d has been completed.\n", epoch+1, iter_num+1);
+        //printf("neural_network is at %dth layer.\n", neural_network -> o_layer -> k);
 
         // // 出力の推定量を二次元配列に格納する
         // double **y_hat = (double **)malloc(sizeof(double *) * b_size);
@@ -393,27 +432,32 @@ int main(int argc, char **argv) {
         // この内容は関数にする
         double **y_hat = estimate(b_size, v_dim, neural_network);
 
-        printf("The estimation of iteration %d has been completed. Deviation is shown below.\n", iter_num+1);
+        fprintf(fp_log, "The estimation of epoch %d iteration %d has been completed. Deviation is shown below.\n", epoch+1, iter_num+1);
         // y_hatの値を表示する
         for (int b = 0; b < b_size; b++) {
             for (int i = 0; i < v_dim; i++) {
-                printf("%f ", y_hat[b][i] - y[b][i]);
+                fprintf(fp_log, "%f ", y_hat[b][i] - y[b][i]);
             }
             // printf("\n");
         }
-        printf("\n");
+        fprintf(fp_log, "\n");
         // ここまでエラーなし 12/30 22:53
 
         // 誤差逆伝播を行いニューラルネットワークを更新する
         neural_network = back_prop(fp_log, neural_network, alpha, b_size);
-        printf("The back propagation of iteration %d has been completed.\n", iter_num+1);
+        fprintf(fp_log, "The back propagation of epoch %d iteration %d has been completed.\n", epoch+1, iter_num+1);
 
         // 1イテレーションごとの決定係数を計算し表示する
         double r2 = calc_r2(y, y_hat, b_size, v_dim);
-        printf("The coefficient of determination of iteration %d is %f.\n", iter_num+1, r2);
-        // neural_network = rewind_network(neural_network);   // ポインタを末尾から先頭に戻す
+        fprintf(fp_log, "The coefficient of determination of epoch %d iteration %d is %f.\n", epoch+1, iter_num+1, r2);
+
+        // エポック終了時には、そのエポックの決定係数を配列に格納する
+        if (iter_num == iter-1) {
+            r2_epoch[epoch] = r2;
+        }
+
         }   // else(訓練データを読んだ場合)の終わり
-    }
+    }   // ミニバッチを取り出し、順伝播、誤差逆伝播を行うループの終わり
 
     // // テストデータの読み込み
     // // テストデータの説明変数の値を```x```、目的変数の値を```y```に、それぞれ二次元配列のサイズを拡張した上で格納する
@@ -423,6 +467,8 @@ int main(int argc, char **argv) {
     //     x_test[b] = (double *)malloc(sizeof(double) * o_dim);
     //     y_test[b] = (double *)malloc(sizeof(double) * v_dim);
     // }
+
+    // テストデータの読み込み(データセットの最後の部分をテストデータにする場合)
     if (test_flag == 0) {
         // テストデータの説明変数の値を```x```、目的変数の値を```y```に格納する
         for (int b = 0; b < b_size*test_iter; b++) {
@@ -442,15 +488,17 @@ int main(int argc, char **argv) {
                 col++;
             }
         }   // 1バッチのデータ読み込み完了
-        printf("The test data has been loaded.\n");
+        fprintf(fp_log, "The test data has been loaded.\n");
     }
     fseek(fp, 0, SEEK_SET);
     fgets(buf, sizeof(buf), fp);    // この時点でfpは2行目を指している(データの1行目を読み飛ばした)
 
+    }   // エポックループの終わり
+
 
     // テストデータを当てはめた時の決定係数を計算し表示する
     // printf("The test data has been loaded.\n");
-    printf("Now calculating the coefficient of determination of test data...\n");
+    fprintf(fp_log, "Now calculating the coefficient of determination of test data...\n");
     neural_network = rewind_network(neural_network);   // ポインタを末尾から先頭に戻す
     // テストデータをバッチサイズ分の行ずつ読み込んで、順伝播を行い、出力の推定量を二次元配列に格納する
     double **y_hat = (double **)malloc(sizeof(double *) * b_size * test_iter);
@@ -470,19 +518,24 @@ int main(int argc, char **argv) {
 
     }
 
-
+    // テストデータに対する当てはめ値を表示する
+    fprintf(fp_log, "The value estimated from test data is below : \n");
     for (int b = 0; b < b_size*test_iter; b++) {
         for (int i = 0; i < v_dim; i++) {
-            printf("%f ", y_hat[b][i]);
+            fprintf(fp_log, "%f ", y_hat[b][i]);
         }
         // printf("\n");
     }
-    printf("\n");
+    fprintf(fp_log, "\n");
 
+    // テストデータの正解値と当てはめ値から決定係数を計算し表示する
     double r2 = calc_r2(y_test, y_hat, b_size*test_iter, v_dim);
-    printf("The coefficient of determination of test data is %f.\n", r2);
+    fprintf(fp_log, "The coefficient of determination of test data is %f.\n", r2);
     // テストデータの決定係数を配列に格納する
-    test_scores[epoch] = r2;
+    test_scores[CRVL] = r2;
+
+    // 学習時の決定係数の推移をグラフで表示する
+
 
     // メモリの解放
     rewind_network(neural_network); // ポインタを末尾から先頭に戻す
@@ -491,13 +544,14 @@ int main(int argc, char **argv) {
     } // 交差検証終了
 
     // 交差検証の結果を表示する
-    printf("--------Review of the coefficient of determination of test data:------------\n");
+    fprintf(fp_log, "--------Review of the coefficient of determination of test data:------------\n");
     double test_score_sum = 0.0;
-    for (int epoch = 0; epoch < iter+1; epoch++) {
-        printf("The coefficient of determination of test data in epoch %d is %f.\n", epoch+1, test_scores[epoch]);
-        test_score_sum += test_scores[epoch];
+    for (int CRVL = 0; CRVL < iter+1; CRVL++) {
+        fprintf(fp_log, "The coefficient of determination of test data in Cross VaLidation #%d is %f.\n", CRVL+1, test_scores[CRVL]);
+        test_score_sum += test_scores[CRVL];
     }
-    printf("The average of the coefficient of determination of test data is %f.\n", test_score_sum / (iter+1));
+    fprintf(fp_log, "The average of the coefficient of determination of test data is %f.\n", test_score_sum / (iter+1));
+    printf("\nThe average of the coefficient of determination of test data is %f.\n", test_score_sum / (iter+1));
 
     return 0;
 }
