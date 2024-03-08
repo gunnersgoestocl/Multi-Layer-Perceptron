@@ -9,8 +9,15 @@ all: src/adv_regression.c src/init.c
 	make demo
 	make sample
 
+wine: src/adv_regression.c src/init.c
+	make init.o
+	make adv_regression.o
+	make lib
+	make demo
+	make do
+
 do: bin/demo
-	bin/demo wine+quality/winequality-red.csv log/demo.txt
+	bin/demo wine+quality/winequality-red.csv log/wine-red_output_$(TODAY).txt log/wine-red_output_$(TODAY)_graph
 
 sample: bin/demo
 	bin/demo sample.txt log/sample_output_$(TODAY).txt log/sample_output_$(TODAY)_graph
