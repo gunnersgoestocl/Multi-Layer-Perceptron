@@ -32,11 +32,6 @@ int main(int argc, char **argv) {
 
     // コマンドラインから学習における精度の推移を出力するファイルを読み込む
     char *filename_graph = argv[3];
-    FILE *fp_graph = popen("gnuplot", "w");
-    fprintf(fp_graph, "set terminal png\n");
-    fprintf(fp_graph, "set output \"%s\"\n", filename_graph);
-    fprintf(fp_graph, "setyrange[-300.0:1.0]\n");
-    // fprintf(fp_graph, "plot '-' with lines linetype 1 title \"sin\"\n");
 
     // ファイルの1行目を';'で区切って、変数名を読み込み表示する
     char buf[256];
@@ -305,6 +300,21 @@ int main(int argc, char **argv) {
     printf("The total number of epochs is %d.\n", total_epoch);
     fprintf(fp_log, "The total number of epochs : %d.\n", total_epoch);
 
+    // 学習時の決定係数の推移をグラフで表示する
+    FILE *fp_graph = popen("gnuplot", "w");
+    fprintf(fp_graph, "set terminal png\n");
+    //fprintf(fp_graph, "set output \"%s\"\n", filename_graph);
+    fprintf(fp_graph, "set output \"%s.png\"\n", filename_graph);
+    fprintf(fp_graph, "set title \"The growth of the coefficient of determination\"\n");
+    fprintf(fp_graph, "set xlabel \"epoch\"\n");
+    fprintf(fp_graph, "set ylabel \"coefficient of determination\"\n");
+    fprintf(fp_graph, "set yrange[-300.0:1.0]\n");
+    fprintf(fp_graph, "plot");
+    for (int i = 0; i < iter+1; i++) {
+        fprintf(fp_graph, " '-' with lines title 'Cross Validation #%d',", i+1);
+    }
+    fprintf(fp_graph, "\n");
+
     // <<<<<<<<<<<<<<データの読み込みと学習>>>>>>>>>>>>>>>
 
     // 交差検証開始(CRVL は交差検証の何フェーズ目かを表す)
@@ -341,6 +351,9 @@ int main(int argc, char **argv) {
     int test_flag = 0;  // テストデータの読み込みが完了したら1にする
     fprintf(fp_log, "The test data has been initialized.\n");
 
+    // 訓練データに対する決定係数の推移を追うための配列を初期化する
+    double *r2_epoch = (double *)malloc(sizeof(double) * total_epoch);
+
     // データを読み込んでニューラルネットワークを学習させる
 
     // エポックループ
@@ -348,8 +361,6 @@ int main(int argc, char **argv) {
         fprintf(fp_log, "\n===================================================\n");
         fprintf(fp_log, "The epoch %d has started.\n", epoch+1);
 
-        // 訓練データに対する決定係数の推移を追うための配列を初期化する
-        double *r2_epoch = (double *)malloc(sizeof(double) * total_epoch);
 
     // ミニバッチを取り出し、順伝播、誤差逆伝播を行う
     for (int iter_num = 0; iter_num<iter; iter_num++) {
@@ -421,14 +432,6 @@ int main(int argc, char **argv) {
         fprintf(fp_log, "The forward propagation of epoch %d iteration %d has been completed.\n", epoch+1, iter_num+1);
         //printf("neural_network is at %dth layer.\n", neural_network -> o_layer -> k);
 
-        // // 出力の推定量を二次元配列に格納する
-        // double **y_hat = (double **)malloc(sizeof(double *) * b_size);
-        // for (int b = 0; b < b_size; b++) {
-        //     y_hat[b] = (double *)malloc(sizeof(double) * v_dim);
-        //     for (int i = 0; i < v_dim; i++) {
-        //         y_hat[b][i] = neural_network -> v_layer -> neuron_2darray[b][i].o;
-        //     }
-        // }
         // この内容は関数にする
         double **y_hat = estimate(b_size, v_dim, neural_network);
 
@@ -459,14 +462,6 @@ int main(int argc, char **argv) {
         }   // else(訓練データを読んだ場合)の終わり
     }   // ミニバッチを取り出し、順伝播、誤差逆伝播を行うループの終わり
 
-    // // テストデータの読み込み
-    // // テストデータの説明変数の値を```x```、目的変数の値を```y```に、それぞれ二次元配列のサイズを拡張した上で格納する
-    // double **x_test = (double **)malloc(sizeof(double *) * b_size);  // test_sizeにするとエラーが出る(当たり前)
-    // double **y_test = (double **)malloc(sizeof(double *) * b_size);
-    // for (int b = 0; b < b_size; b++) {
-    //     x_test[b] = (double *)malloc(sizeof(double) * o_dim);
-    //     y_test[b] = (double *)malloc(sizeof(double) * v_dim);
-    // }
 
     // テストデータの読み込み(データセットの最後の部分をテストデータにする場合)
     if (test_flag == 0) {
@@ -508,12 +503,6 @@ int main(int argc, char **argv) {
     // テストデータをバッチサイズ分の行ずつ読み込んで、順伝播を行い、出力の推定量を二次元配列に格納する
     for (int iter_num = 0; iter_num < test_iter; iter_num++) {
         neural_network = forward_prop(fp_log, &x_test[iter_num*b_size], &y_test[iter_num*b_size], neural_network, leakly_relu, leakly_relu_grad);
-        // for (int b = 0; b < b_size; b++) {
-        //     for (int i = 0; i < v_dim; i++) {
-        //         y_hat[iter_num*b_size+b][i] = neural_network -> v_layer -> neuron_2darray[b][i].o;
-        //     }
-        // }
-        // 関数に置き換えると
         estimate_sub(b_size, iter_num, v_dim, neural_network, y_hat);
 
     }
@@ -534,14 +523,20 @@ int main(int argc, char **argv) {
     // テストデータの決定係数を配列に格納する
     test_scores[CRVL] = r2;
 
-    // 学習時の決定係数の推移をグラフで表示する
-
+    // // 学習時の決定係数の推移をグラフで表示する
+    for (int i = 0; i < total_epoch; i++) {
+        fprintf(fp_graph, "%d %f\n", i+1, r2_epoch[i]);
+    }
+    fprintf(fp_graph, "e\n");
 
     // メモリの解放
     rewind_network(neural_network); // ポインタを末尾から先頭に戻す
     free_network(neural_network);
 
     } // 交差検証終了
+
+    fprintf(fp_graph, "quit\n");
+    pclose(fp_graph);
 
     // 交差検証の結果を表示する
     fprintf(fp_log, "--------Review of the coefficient of determination of test data:------------\n");

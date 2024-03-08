@@ -13,7 +13,7 @@ do: bin/demo
 	bin/demo wine+quality/winequality-red.csv log/demo.txt
 
 sample: bin/demo
-	bin/demo sample.txt log/sample_output_$(TODAY).txt log/sample_output_graph_$(TODAY)/sample_output_graph_$(TODAY)
+	bin/demo sample.txt log/sample_output_$(TODAY).txt log/sample_output_$(TODAY)_graph
 
 demo: lib/libadv_regression.a
 	$(CC) -o bin/demo -L./lib -ladv_regression
