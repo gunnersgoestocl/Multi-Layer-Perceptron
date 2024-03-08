@@ -150,7 +150,7 @@ void free_network(network_1layer *neural_network) {
 //     - 第 $D+1$ ニューロン層への入力値```v```から第 $D+1$ ニューロン層の出力値```o```を返す(この時は```v```と```o```は同じ値でこれが出力の推定量となる)
 //       - 代わりに、目的変数値のベクトル```y```を元に、第 $D+1$ ニューロン層の```delta```に、各データごと($0 <= b < b_size$)に```o```と```y```の差をとったものを代入する
 
-network_1layer *forward_prop(FILE *fp_log, double **x, double **y, network_1layer *neural_network, double (*activator)(double), double (*activator_grad)(double)) {
+network_1layer *forward_prop(FILE *fp_log, double **x, double **y, network_1layer *neural_network, double (*activator)(double), double (*activator_grad)(double), int program_confirmation, int show_values) {
 
     fprintf(fp_log,"\n==============<<forward_prop>>=================\n");
     // 第0層の入力値vをxに設定
@@ -159,8 +159,15 @@ network_1layer *forward_prop(FILE *fp_log, double **x, double **y, network_1laye
             neural_network -> o_layer -> neuron_2darray[b][i].v = x[b][i];
         }
     }
-    fprintf(fp_log,"setting v of the 0th layer is completed\n");
-    print_network(neural_network, fp_log);
+    if (show_values == 1) {
+        fprintf(fp_log, "setting v of the 0th layer is completed\n");
+        print_network(neural_network, fp_log);
+    }
+    else if (program_confirmation == 1) {
+        fprintf(fp_log, "setting v of the 0th layer is completed\n");
+    }
+    // fprintf(fp_log,"setting v of the 0th layer is completed\n");
+    // print_network(neural_network, fp_log);
 
     // 第0層の出力値oを更新
     for (int b = 0; b < neural_network -> o_layer -> b_size; b++) {
@@ -168,8 +175,15 @@ network_1layer *forward_prop(FILE *fp_log, double **x, double **y, network_1laye
             neural_network -> o_layer -> neuron_2darray[b][i].o = neural_network -> o_layer -> neuron_2darray[b][i].v;
         }
     }
-    fprintf(fp_log,"updating o of the 0th layer is completed\n");
-    print_network(neural_network, fp_log);
+    if (show_values == 1) {
+        fprintf(fp_log, "updating o of the 0th layer is completed\n");
+        print_network(neural_network, fp_log);
+    }
+    else if (program_confirmation == 1) {
+        fprintf(fp_log, "updating o of the 0th layer is completed\n");
+    }
+    // fprintf(fp_log,"updating o of the 0th layer is completed\n");
+    // print_network(neural_network, fp_log);
 
     // 第1層から第D層までのニューロンの入力値と出力値を交互に計算し更新
     while (neural_network -> next != NULL) {
@@ -183,8 +197,15 @@ network_1layer *forward_prop(FILE *fp_log, double **x, double **y, network_1laye
                 }
             }
         }
-        fprintf(fp_log, "calculating v of the %dth layer is completed\n", neural_network -> v_layer -> k);
-        print_network(neural_network, fp_log);
+        if (show_values == 1) {
+            fprintf(fp_log, "calculating v of the %dth layer is completed\n", neural_network -> v_layer -> k);
+            print_network(neural_network, fp_log);
+        }
+        else if (program_confirmation == 1) {
+            fprintf(fp_log, "calculating v of the %dth layer is completed\n", neural_network -> v_layer -> k);
+        }
+        // fprintf(fp_log, "calculating v of the %dth layer is completed\n", neural_network -> v_layer -> k);
+        // print_network(neural_network, fp_log);
 
         // 第k層のニューロンの活性化関数の勾配delAを計算
         for (int b = 0; b < neural_network -> o_layer -> b_size; b++) {
@@ -192,8 +213,15 @@ network_1layer *forward_prop(FILE *fp_log, double **x, double **y, network_1laye
                 neural_network -> v_layer -> neuron_2darray[b][i].delA = (*activator_grad)(neural_network -> v_layer -> neuron_2darray[b][i].v);
             }
         }
-        fprintf(fp_log, "calculating delA of the %dth layer is completed\n", neural_network -> v_layer -> k);
-        print_network(neural_network, fp_log);
+        if (show_values == 1) {
+            fprintf(fp_log, "calculating delA of the %dth layer is completed\n", neural_network -> v_layer -> k);
+            print_network(neural_network, fp_log);
+        }
+        else if (program_confirmation == 1) {
+            fprintf(fp_log, "calculating delA of the %dth layer is completed\n", neural_network -> v_layer -> k);
+        }
+        // fprintf(fp_log, "calculating delA of the %dth layer is completed\n", neural_network -> v_layer -> k);
+        // print_network(neural_network, fp_log);
 
         // 第k層のニューロンへの入力値vを活性化関数にかけて出力値oを計算
         for (int b = 0; b < neural_network -> o_layer -> b_size; b++) {
@@ -201,8 +229,15 @@ network_1layer *forward_prop(FILE *fp_log, double **x, double **y, network_1laye
                 neural_network -> v_layer -> neuron_2darray[b][i].o = (*activator)(neural_network -> v_layer -> neuron_2darray[b][i].v);
             }
         }
-        fprintf(fp_log, "updating o of the %dth layer is completed\n", neural_network -> v_layer -> k);
-        print_network(neural_network, fp_log);
+        if (show_values == 1) {
+            fprintf(fp_log, "updating o of the %dth layer is completed\n", neural_network -> v_layer -> k);
+            print_network(neural_network, fp_log);
+        }
+        else if (program_confirmation == 1) {
+            fprintf(fp_log, "updating o of the %dth layer is completed\n", neural_network -> v_layer -> k);
+        }
+        // fprintf(fp_log, "updating o of the %dth layer is completed\n", neural_network -> v_layer -> k);
+        // print_network(neural_network, fp_log);
 
         // 次のネットワーク層へ
         neural_network = neural_network -> next;  
@@ -217,8 +252,15 @@ network_1layer *forward_prop(FILE *fp_log, double **x, double **y, network_1laye
             }
         }
     }
-    fprintf(fp_log, "calculating v of the %dth layer is completed\n", neural_network -> v_layer -> k);
-    print_network(neural_network, fp_log);
+    if (show_values == 1) {
+        fprintf(fp_log, "calculating v of the %dth layer is completed\n", neural_network -> v_layer -> k);
+        print_network(neural_network, fp_log);
+    }
+    else if (program_confirmation == 1) {
+        fprintf(fp_log, "calculating v of the %dth layer is completed\n", neural_network -> v_layer -> k);
+    }
+    // fprintf(fp_log, "calculating v of the %dth layer is completed\n", neural_network -> v_layer -> k);
+    // print_network(neural_network, fp_log);
 
     // 第D+1層のニューロンの出力値oを計算
     for (int b = 0; b < neural_network -> o_layer -> b_size; b++) {
@@ -226,8 +268,15 @@ network_1layer *forward_prop(FILE *fp_log, double **x, double **y, network_1laye
             neural_network -> v_layer -> neuron_2darray[b][i].o = neural_network -> v_layer -> neuron_2darray[b][i].v;
         }
     }
-    fprintf(fp_log, "updating o of the %dth layer is completed\n", neural_network -> v_layer -> k);
-    print_network(neural_network, fp_log);
+    if (show_values == 1) {
+        fprintf(fp_log, "updating o of the %dth layer is completed\n", neural_network -> v_layer -> k);
+        print_network(neural_network, fp_log);
+    }
+    else if (program_confirmation == 1) {
+        fprintf(fp_log, "updating o of the %dth layer is completed\n", neural_network -> v_layer -> k);
+    }
+    // fprintf(fp_log, "updating o of the %dth layer is completed\n", neural_network -> v_layer -> k);
+    // print_network(neural_network, fp_log);
 
     // 第D+1層のニューロンのdeltaを計算
     for (int b = 0; b < neural_network -> o_layer -> b_size; b++) {
@@ -235,8 +284,15 @@ network_1layer *forward_prop(FILE *fp_log, double **x, double **y, network_1laye
             neural_network -> v_layer -> neuron_2darray[b][i].delta = neural_network -> v_layer -> neuron_2darray[b][i].o - y[b][i];
         }
     }
-    fprintf(fp_log, "calculating delta of the %dth layer is completed\n", neural_network -> v_layer -> k);
-    print_network(neural_network, fp_log);
+    if (show_values == 1) {
+        fprintf(fp_log, "calculating delta of the %dth layer is completed\n", neural_network -> v_layer -> k);
+        print_network(neural_network, fp_log);
+    }
+    else if (program_confirmation == 1) {
+        fprintf(fp_log, "calculating delta of the %dth layer is completed\n", neural_network -> v_layer -> k);
+    }
+    // fprintf(fp_log, "calculating delta of the %dth layer is completed\n", neural_network -> v_layer -> k);
+    // print_network(neural_network, fp_log);
     //fprintf(fp_log, "neural_network is at %dth layer.\n", neural_network -> v_layer -> k); // デバグコード
 
     return neural_network;  // 線形リストの末尾へのポインタを返す
@@ -256,8 +312,11 @@ network_1layer *forward_prop(FILE *fp_log, double **x, double **y, network_1laye
 //      - 第 $1$ ネットワーク層の行列成分の更新で、全体の更新を終える
 //    - 線形リストの先頭のネットワーク層構造体へのポインタを返す
 
-network_1layer *back_prop(FILE *fp_log, network_1layer *neural_network, double alpha, int b_size) {
-    fprintf(fp_log, "\n===============<<back_prop>>================\n");
+network_1layer *back_prop(FILE *fp_log, network_1layer *neural_network, double alpha, int b_size, int program_confirmation, int show_values) {
+    if (show_values == 1 || program_confirmation == 1) {
+        fprintf(fp_log, "\n===============<<back_prop>>================\n");
+    }
+    // fprintf(fp_log, "\n===============<<back_prop>>================\n");
 
     // 第D+1層の行列成分Uを更新
     for (int i = 0; i < neural_network -> o_dim; i++) {
@@ -273,7 +332,14 @@ network_1layer *back_prop(FILE *fp_log, network_1layer *neural_network, double a
             }
         }
     }
-    fprintf(fp_log, "updating U of the %dth layer is completed\n", neural_network -> v_layer -> k);
+    if (show_values == 1) {
+        fprintf(fp_log, "updating U of the %dth layer is completed\n", neural_network -> v_layer -> k);
+        print_network(neural_network, fp_log);
+    }
+    else if (program_confirmation == 1) {
+        fprintf(fp_log, "updating U of the %dth layer is completed\n", neural_network -> v_layer -> k);
+    }
+    // fprintf(fp_log, "updating U of the %dth layer is completed\n", neural_network -> v_layer -> k);
 
     // 第D層のdeltaを更新
     for (int b = 0; b < b_size; b++) {
@@ -290,13 +356,24 @@ network_1layer *back_prop(FILE *fp_log, network_1layer *neural_network, double a
             }
         }
     }
-    fprintf(fp_log, "updating delta of the %dth layer is completed\n", neural_network -> o_layer -> k);
-    print_network(neural_network, fp_log);
+    if (show_values == 1) {
+        fprintf(fp_log, "updating delta of the %dth layer is completed\n", neural_network -> o_layer -> k);
+        print_network(neural_network, fp_log);
+    }
+    else if (program_confirmation == 1) {
+        fprintf(fp_log, "updating delta of the %dth layer is completed\n", neural_network -> o_layer -> k);
+    }
+    // fprintf(fp_log, "updating delta of the %dth layer is completed\n", neural_network -> o_layer -> k);
+    // print_network(neural_network, fp_log);
 
     // 第D層から第2層まで、ネットワーク層の行列成分Uとo_layerのdeltaを交互に更新
     while (neural_network -> o_layer -> k > 1) {
         neural_network = neural_network -> prev;
-        fprintf(fp_log, "updating U (%dth layer) and delta of the %dth layer\n", neural_network -> v_layer -> k ,neural_network -> o_layer -> k);
+        if (show_values == 1 || program_confirmation == 1) {
+            fprintf(fp_log, "neural_network is at %dth layer.\n", neural_network -> o_layer -> k);
+            // print_network(neural_network, fp_log);
+        }
+        // fprintf(fp_log, "updating U (%dth layer) and delta of the %dth layer\n", neural_network -> v_layer -> k ,neural_network -> o_layer -> k);
         // 第kネットワーク層の行列成分Uを更新
         for (int i = 0; i < neural_network -> o_dim; i++) {
             for (int j = 0; j < neural_network -> v_dim; j++) {
@@ -313,24 +390,19 @@ network_1layer *back_prop(FILE *fp_log, network_1layer *neural_network, double a
                 }
             }
         }
-        fprintf(fp_log, "updating U of the %dth layer is completed\n", neural_network -> v_layer -> k);
-        print_network(neural_network, fp_log);
+        if (show_values == 1) {
+            fprintf(fp_log, "updating U of the %dth layer is completed\n", neural_network -> v_layer -> k);
+            print_network(neural_network, fp_log);
+        }
+        else if (program_confirmation == 1) {
+            fprintf(fp_log, "updating U of the %dth layer is completed\n", neural_network -> v_layer -> k);
+        }
+        // fprintf(fp_log, "updating U of the %dth layer is completed\n", neural_network -> v_layer -> k);
+        // print_network(neural_network, fp_log);
         // printf("updating U of the %dth layer is completed\n", neural_network -> v_layer -> k);
         // ここまでエラーなし
 
-        // // 第kネットワーク層のo_layerのdeltaを更新
-        // if (neural_network -> o_layer -> k == 1){
-        //     printf("neural_network -> o_dim is %d.\n", neural_network -> o_dim);
-        //     printf("neural_network -> v_dim is %d.\n", neural_network -> v_dim);
-        //     // weightを表示
-        //     for (int i = 0; i < neural_network -> o_dim; i++) {
-        //         for (int j = 0; j < neural_network -> v_dim; j++) {
-        //             printf("%f ", neural_network -> weight[i][j]);
-        //         }
-        //         printf("\n");
-        //     }
-        //     printf("weight is displayed\n");
-        // }
+        // 第kネットワーク層のo_layerのdeltaを更新
         for (int b = 0; b < b_size; b++) {
             for (int i = 0; i < neural_network -> o_dim; i++) {
                 double delta_sum = 0.0;
@@ -350,10 +422,21 @@ network_1layer *back_prop(FILE *fp_log, network_1layer *neural_network, double a
                 }
             }
         }
-        fprintf(fp_log, "updating delta of the %dth layer is completed\n", neural_network -> o_layer -> k);
-        print_network(neural_network, fp_log);
+        if (show_values == 1) {
+            fprintf(fp_log, "updating delta of the %dth layer is completed\n", neural_network -> o_layer -> k);
+            print_network(neural_network, fp_log);
+        }
+        else if (program_confirmation == 1) {
+            fprintf(fp_log, "updating delta of the %dth layer is completed\n", neural_network -> o_layer -> k);
+        }
+        // fprintf(fp_log, "updating delta of the %dth layer is completed\n", neural_network -> o_layer -> k);
+        // print_network(neural_network, fp_log);
     }
-    fprintf(fp_log, "updating U and delta of the 2nd layer is completed\n");
+    if (show_values == 1 || program_confirmation == 1) {
+        fprintf(fp_log, "neural_network is at %dth layer.\n", neural_network -> o_layer -> k);
+        // print_network(neural_network, fp_log);
+    }
+    // fprintf(fp_log, "updating U and delta of the 2nd layer is completed\n");
     // fprintf(fp_log, "neural_network is at %dth layer.\n", neural_network -> o_layer -> k); // デバグコード
     neural_network = neural_network -> prev;    // 学習が進まないバグを解消するため追加 2024/03/07
 
@@ -371,7 +454,14 @@ network_1layer *back_prop(FILE *fp_log, network_1layer *neural_network, double a
             // }
         }
     }
-    fprintf(fp_log, "updating U of the 1st layer is completed\n");
+    // fprintf(fp_log, "updating U of the 1st layer is completed\n");
+    if (show_values == 1 || show_values == 3) {
+        fprintf(fp_log, "updating U of the 1st layer is completed\n");
+        print_network(neural_network, fp_log);
+    }
+    else if (program_confirmation == 1) {
+        fprintf(fp_log, "updating U of the 1st layer is completed\n");
+    }
     // fprintf(fp_log, "neural_network is at %dth layer.\n", neural_network -> o_layer -> k); // デバグコード
     return neural_network;
 }

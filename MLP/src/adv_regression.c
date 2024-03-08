@@ -300,6 +300,32 @@ int main(int argc, char **argv) {
     printf("The total number of epochs is %d.\n", total_epoch);
     fprintf(fp_log, "The total number of epochs : %d.\n", total_epoch);
 
+    // logファイルに記録する内容を指定する
+    printf("You can choose the contents to be recorded in the log file.\n");
+    printf("The contents shown below will be necessarily recorded in the log file.\n");
+    printf("    1. The objective variable\n");
+    printf("    2. The explanatory variables\n");
+    printf("    3. The number of neurons in each layer\n");
+    printf("    4. The learning rate\n");
+    printf("    5. The total number of data\n");
+    printf("    6. The batch size\n");
+    printf("    7. The number of iterations\n");
+    printf("    8. The size of test data\n");
+    printf("    9. The total number of epochs\n");
+    printf("    10. The coefficient of determination of test data\n");
+
+    printf("Then, you can choose the additional contents to be recorded in the log file.\n");
+
+    printf("Do you want the confirmation sentences that the program is working properly?\n");
+    printf("    1:yes   2:no    (input 1 or 2) :\n");
+    int program_confirmation;
+    scanf("%d", &program_confirmation);
+
+    printf("Do you want the values which neurons and weights take in every stage?\n");
+    printf("    1:yes   2:no    3:only if iteration ends   (input 1,2 or 3) :\n");
+    int show_values;
+    scanf("%d", &show_values);
+
     // 学習時の決定係数の推移をグラフで表示する
     FILE *fp_graph = popen("gnuplot", "w");
     fprintf(fp_graph, "set terminal png\n");
@@ -334,11 +360,17 @@ int main(int argc, char **argv) {
     // ニューラルネットワークの出力層を表すニューロン層を作る
     neuron_layer *v_layer = init_neuron_layer(D+1, v_dim, b_size);
     neural_network = push_network_back(o_layer, v_layer, neural_network);    // 第 D+1 層まで初期化されたニューラルネットワークを表す構造体の線形リストができた
-    fprintf(fp_log, "The neural network has been initialized.\n");
+    if (program_confirmation == 1) {
+        fprintf(fp_log, "The neural network has been initialized.\n");
+    }
+    // fprintf(fp_log, "The neural network has been initialized.\n");
     // ここまでエラーなし 12/30 22:25
 
     // ニューラルネットワークをネットワークグラフで表示する
-    print_network(neural_network, fp_log);
+    if (show_values == 1) {
+        print_network(neural_network, fp_log);
+    }
+    // print_network(neural_network, fp_log);
 
     // テストデータの読み込み
     // テストデータの説明変数の値を```x```、目的変数の値を```y```に、それぞれ二次元配列のサイズを拡張した上で格納する
@@ -349,7 +381,10 @@ int main(int argc, char **argv) {
         y_test[b] = (double *)malloc(sizeof(double) * v_dim);
     }
     int test_flag = 0;  // テストデータの読み込みが完了したら1にする
-    fprintf(fp_log, "The test data has been initialized.\n");
+    if (program_confirmation == 1) {
+        fprintf(fp_log, "The test data has been initialized.\n");
+    }
+    // fprintf(fp_log, "The test data has been initialized.\n");
 
     // 訓練データに対する決定係数の推移を追うための配列を初期化する
     double *r2_epoch = (double *)malloc(sizeof(double) * total_epoch);
@@ -385,7 +420,10 @@ int main(int argc, char **argv) {
                     col++;
                 }
             }   // 1バッチのデータ読み込み完了
-            fprintf(fp_log, "The test data has been loaded.\n");
+            if (program_confirmation == 1) {
+                fprintf(fp_log, "The test data has been loaded.\n");
+            }
+            // fprintf(fp_log, "The test data has been loaded.\n");
             test_flag = 1;
             iter_num--;
         }
@@ -417,7 +455,10 @@ int main(int argc, char **argv) {
                 col++;
             }
         }   // 1バッチのデータ読み込み完了
-        fprintf(fp_log, "The data of epoch %d iteration %d has been loaded.\n", epoch+1, iter_num+1);
+        if (program_confirmation == 1) {
+            fprintf(fp_log, "The data of epoch %d iteration %d has been loaded.\n", epoch+1, iter_num+1);
+        }
+        // fprintf(fp_log, "The data of epoch %d iteration %d has been loaded.\n", epoch+1, iter_num+1);
         // // xの値を表示する
         // for (int b = 0; b < b_size; b++) {
         //     for (int i = 0; i < o_dim; i++) {
@@ -428,27 +469,44 @@ int main(int argc, char **argv) {
         // ここまでエラーなし 12/30 22:27
 
         // 順伝播を行う
-        neural_network = forward_prop(fp_log, x, y, neural_network, leakly_relu, leakly_relu_grad);
-        fprintf(fp_log, "The forward propagation of epoch %d iteration %d has been completed.\n", epoch+1, iter_num+1);
+        neural_network = forward_prop(fp_log, x, y, neural_network, leakly_relu, leakly_relu_grad, program_confirmation, show_values);
+        if (program_confirmation == 1) {
+            fprintf(fp_log, "The forward propagation of epoch %d iteration %d has been completed.\n", epoch+1, iter_num+1);
+        }
+        // fprintf(fp_log, "The forward propagation of epoch %d iteration %d has been completed.\n", epoch+1, iter_num+1);
         //printf("neural_network is at %dth layer.\n", neural_network -> o_layer -> k);
 
         // この内容は関数にする
         double **y_hat = estimate(b_size, v_dim, neural_network);
 
-        fprintf(fp_log, "The estimation of epoch %d iteration %d has been completed. Deviation is shown below.\n", epoch+1, iter_num+1);
-        // y_hatの値を表示する
-        for (int b = 0; b < b_size; b++) {
-            for (int i = 0; i < v_dim; i++) {
-                fprintf(fp_log, "%f ", y_hat[b][i] - y[b][i]);
+        if (program_confirmation == 1) {
+            fprintf(fp_log, "The estimation of epoch %d iteration %d has been completed. Deviation is shown below.\n", epoch+1, iter_num+1);
+            // y_hatの値を表示する
+            for (int b = 0; b < b_size; b++) {
+                for (int i = 0; i < v_dim; i++) {
+                    fprintf(fp_log, "%f ", y_hat[b][i] - y[b][i]);
+                }
+                // printf("\n");
             }
-            // printf("\n");
+            fprintf(fp_log, "\n");
         }
-        fprintf(fp_log, "\n");
+        // fprintf(fp_log, "The estimation of epoch %d iteration %d has been completed. Deviation is shown below.\n", epoch+1, iter_num+1);
+        // // y_hatの値を表示する
+        // for (int b = 0; b < b_size; b++) {
+        //     for (int i = 0; i < v_dim; i++) {
+        //         fprintf(fp_log, "%f ", y_hat[b][i] - y[b][i]);
+        //     }
+        //     // printf("\n");
+        // }
+        // fprintf(fp_log, "\n");
         // ここまでエラーなし 12/30 22:53
 
         // 誤差逆伝播を行いニューラルネットワークを更新する
-        neural_network = back_prop(fp_log, neural_network, alpha, b_size);
-        fprintf(fp_log, "The back propagation of epoch %d iteration %d has been completed.\n", epoch+1, iter_num+1);
+        neural_network = back_prop(fp_log, neural_network, alpha, b_size, program_confirmation, show_values);
+        if (program_confirmation == 1) {
+            fprintf(fp_log, "The back propagation of epoch %d iteration %d has been completed.\n", epoch+1, iter_num+1);
+        }
+        // fprintf(fp_log, "The back propagation of epoch %d iteration %d has been completed.\n", epoch+1, iter_num+1);
 
         // 1イテレーションごとの決定係数を計算し表示する
         double r2 = calc_r2(y, y_hat, b_size, v_dim);
@@ -483,7 +541,10 @@ int main(int argc, char **argv) {
                 col++;
             }
         }   // 1バッチのデータ読み込み完了
-        fprintf(fp_log, "The test data has been loaded.\n");
+        if (program_confirmation == 1) {
+            fprintf(fp_log, "The test data has been loaded.\n");
+        }
+        // fprintf(fp_log, "The test data has been loaded.\n");
     }
     fseek(fp, 0, SEEK_SET);
     fgets(buf, sizeof(buf), fp);    // この時点でfpは2行目を指している(データの1行目を読み飛ばした)
@@ -492,8 +553,10 @@ int main(int argc, char **argv) {
 
 
     // テストデータを当てはめた時の決定係数を計算し表示する
-    // printf("The test data has been loaded.\n");
-    fprintf(fp_log, "Now calculating the coefficient of determination of test data...\n");
+    if (program_confirmation == 1) {
+        fprintf(fp_log, "Now calculating the coefficient of determination of test data...\n");
+    }
+    // fprintf(fp_log, "Now calculating the coefficient of determination of test data...\n");
     neural_network = rewind_network(neural_network);   // ポインタを末尾から先頭に戻す
     // テストデータをバッチサイズ分の行ずつ読み込んで、順伝播を行い、出力の推定量を二次元配列に格納する
     double **y_hat = (double **)malloc(sizeof(double *) * b_size * test_iter);
@@ -502,7 +565,7 @@ int main(int argc, char **argv) {
     }
     // テストデータをバッチサイズ分の行ずつ読み込んで、順伝播を行い、出力の推定量を二次元配列に格納する
     for (int iter_num = 0; iter_num < test_iter; iter_num++) {
-        neural_network = forward_prop(fp_log, &x_test[iter_num*b_size], &y_test[iter_num*b_size], neural_network, leakly_relu, leakly_relu_grad);
+        neural_network = forward_prop(fp_log, &x_test[iter_num*b_size], &y_test[iter_num*b_size], neural_network, leakly_relu, leakly_relu_grad, program_confirmation, show_values);
         estimate_sub(b_size, iter_num, v_dim, neural_network, y_hat);
 
     }
