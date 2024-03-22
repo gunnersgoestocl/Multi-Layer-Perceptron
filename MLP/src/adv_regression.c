@@ -33,11 +33,15 @@ int main(int argc, char **argv) {
     // コマンドラインから学習における精度の推移を出力するファイルを読み込む
     char *filename_graph = argv[3];
 
+    // <<<<<<<<<<<<<<<<<<<<<<<<変数の取得>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+
     // ファイルの1行目を';'で区切って、変数名を読み込み表示する
     char buf[256];
+    int num_var = 0;    // 変数の総数
     fgets(buf, sizeof(buf), fp);
     char *token = strtok(buf, ";");
     while (token != NULL) {
+        num_var++;
         printf("%s\n", token);
         token = strtok(NULL, ";\n");
     }
@@ -55,7 +59,7 @@ int main(int argc, char **argv) {
     token = strtok(buf, ";\n");
     const int v_dim = 1;  // 目的変数の個数(変数にする実装には今回はしない)
     int v_col = -1;   // 目的変数の列番号
-    int col = 0;    
+    int col = 0;    // 列番号のカーソル
     while (token != NULL) {
         // printf("comparing with %s: %d\n", token, strcmp(token, objective));
         if (strcmp(token, objective) == 0) {
@@ -69,7 +73,13 @@ int main(int argc, char **argv) {
     // 目的変数の列番号が見つからなかったら正しい変数名を入力するよう指示する
     while (v_col == -1) {
         printf("Cannot find the objective variable. Please input the correct name of the objective variable.\n");
-        char objective[256];
+        // objectiveの配列を初期化する
+        int i=0;
+        while (objective[i] != '\0') {
+            objective[i] = '\0';
+            i++;
+        }
+        // char objective[256];
         scanf("%[^\n]%*1[\n]", objective);
         printf("You input %s.\n", objective);
         // 目的変数の変数名が含まれる列番号を調べる
@@ -172,6 +182,11 @@ int main(int argc, char **argv) {
                 }
                 break;
             }
+            // 追加
+            else if (col == num_var - 1){
+                printf("Cannot find the explanatory variable. Please input the correct name of the explanatory variable.\n");
+            }
+            // 追加終わり
             token = strtok(NULL, ";\n");
             col++;
         }   // while (token != NULL) の終わり(変数名の探索の終わり)
@@ -232,6 +247,10 @@ int main(int argc, char **argv) {
     printf(".\n");
     printf("Start designing the neural network.\n");
 
+    // この上の変数設定部分を関数化する
+
+    // set_variables(fp, fp_log, &v_dim, &v_col, &o_dim, o_col, explanatory_list);
+
     // <<<<<<<<ニューラルネットワークの設計>>>>>>>>>>>>>
 
     // ニューラルネットワークの層の数、各層のニューロンの個数をスペース区切りでコマンドラインから読み込む
@@ -253,6 +272,8 @@ int main(int argc, char **argv) {
     printf("    output layer: %7d\n", v_dim);   // 今回は出力層のニューロンは1つとあらかじめて決めてしまう
 
     // <<<<<<<<<<<<学習の仕方の設定>>>>>>>>>>>>>
+
+    // char buf[256];  // ファイルの1行を読み込むためのバッファ(上を関数化した際に必要)
 
     // 学習率の取得
     printf("Input the learning rate: ");
@@ -343,8 +364,12 @@ int main(int argc, char **argv) {
 
     // <<<<<<<<<<<<<<データの読み込みと学習>>>>>>>>>>>>>>>
 
+    // int col = 0;    // 列番号のカーソル // 変数名捜索のためのcolは関数内に格納するため、外出しにする
+
     // 交差検証開始(CRVL は交差検証の何フェーズ目かを表す)
     for (int CRVL = 0; CRVL < iter+1; CRVL++) {  
+    
+    // char *token;   // 上の方の定義は関数内に格納するため、ここで定義する
     
     // ニューラルネットワークを初期化する
     // ニューラルネットワークの層を表す構造体の線形リストの先頭へのポインタを作る
