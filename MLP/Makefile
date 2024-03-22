@@ -16,6 +16,14 @@ wine: src/adv_regression.c src/init.c
 	make demo
 	make do
 
+separate: src/adv_regression.c src/init.c src/setting.c
+	make init.o
+	make adv_regression.o
+	make setting.o
+	make lib2
+	make demo
+	make sample
+
 do: bin/demo
 	bin/demo wine+quality/winequality-red.csv log/wine-red_output_$(TODAY).txt log/wine-red_output_$(TODAY)_graph
 
@@ -28,11 +36,14 @@ demo: lib/libadv_regression.a
 lib: src/init.o  src/adv_regression.o
 	$(AR) rsv lib/libadv_regression.a src/init.o src/adv_regression.o
 
+lib2: src/init.o  src/adv_regression.o src/setting.o
+	$(AR) rsv lib/libadv_regression.a src/init.o src/adv_regression.o src/setting.o
+
 init.o: src/init.c
 	$(CC) -I./include -c -o src/init.o src/init.c 
 
-# prop.o: src/prop.c
-# 	$(CC) -I./include -c -o src/prop.o src/prop.c
+setting.o: src/setting.c
+	$(CC) -I./include -c -o src/setting.o src/setting.c
 
 adv_regression.o: src/adv_regression.c
 	$(CC) -I./include -c -o src/adv_regression.o src/adv_regression.c 
