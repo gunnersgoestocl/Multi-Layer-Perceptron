@@ -3,6 +3,7 @@
 #include <math.h>
 #include <string.h>
 #include "init.h"
+#include "setting.h"
 #include "graph.h"
 // #include "prop.h"
 
@@ -11,8 +12,7 @@ double calc_r2(double **y, double **o, int b_size, int v_dim);
 // main関数
 int main(int argc, char **argv) {
 
-    // 学習率
-    double alpha = 0.00001;
+    
 
     // コマンドラインから分析したいファイル名を読み込む
     char *filename_data = argv[1];
@@ -35,291 +35,34 @@ int main(int argc, char **argv) {
 
     // <<<<<<<<<<<<<<<<<<<<<<<<変数の取得>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
-    // ファイルの1行目を';'で区切って、変数名を読み込み表示する
-    char buf[256];
-    int num_var = 0;    // 変数の総数
-    fgets(buf, sizeof(buf), fp);
-    char *token = strtok(buf, ";");
-    while (token != NULL) {
-        num_var++;
-        printf("%s\n", token);
-        token = strtok(NULL, ";\n");
-    }
-
-    // <<<<<<<<<<<<<<<<<目的変数名の取得>>>>>>>>>>>>>>>>>
-
-    // 目的変数の変数名をコマンドラインに書き込むよう指示する
-    printf("Input the name of the objective variable: ");
-    char objective[256];
-    scanf("%[^\n]%*1[\n]", objective);
-    printf("You input %s.\n", objective);
-    // 目的変数の変数名が含まれる列番号を調べる
-    fseek(fp, 0, SEEK_SET);
-    fgets(buf, sizeof(buf), fp);
-    token = strtok(buf, ";\n");
-    const int v_dim = 1;  // 目的変数の個数(変数にする実装には今回はしない)
-    int v_col = -1;   // 目的変数の列番号
-    int col = 0;    // 列番号のカーソル
-    while (token != NULL) {
-        // printf("comparing with %s: %d\n", token, strcmp(token, objective));
-        if (strcmp(token, objective) == 0) {
-            v_col = col;
-            printf("register success\n");
-            break;
-        }
-        token = strtok(NULL, ";\n");
-        col++;
-    }
-    // 目的変数の列番号が見つからなかったら正しい変数名を入力するよう指示する
-    while (v_col == -1) {
-        printf("Cannot find the objective variable. Please input the correct name of the objective variable.\n");
-        // objectiveの配列を初期化する
-        int i=0;
-        while (objective[i] != '\0') {
-            objective[i] = '\0';
-            i++;
-        }
-        // char objective[256];
-        scanf("%[^\n]%*1[\n]", objective);
-        printf("You input %s.\n", objective);
-        // 目的変数の変数名が含まれる列番号を調べる
-        fseek(fp, 0, SEEK_SET);
-        fgets(buf, sizeof(buf), fp);
-        token = strtok(buf, ";\n");
-        col = 0;    
-        while (token != NULL) {
-            if (strcmp(token, objective) == 0) {
-                v_col = col;
-                printf("register success\n");
-                break;
-            }
-            token = strtok(NULL, ";\n");
-            col++;
-        }
-    }
-    // logファイルに目的変数名を書き込む
-    fprintf(fp_log, "objective variable : %s.\n", objective);
-
-    // <<<<<<<<<<<<<<<<<<<<説明変数名の取得>>>>>>>>>>>>>>>>>>>>>
-
-    // 説明変数の変数名を一つずつコマンドラインに書き込むよう指示する
-    // ALLと書いてEnterを押すと、目的変数以外全ての列を説明変数として処理する
-    // 何も書かずにEnterを押すと、説明変数の入力を終了する     
-    printf("Input the name of the explanatory variables (ALL to select all or END to quit selecting): ");
-    char explanatory[256];
-    scanf("%[^\n]%*1[\n]", explanatory);
-    printf("You input %s.\n", explanatory);
+    int *v_col = (int *)malloc(sizeof(int));    // 目的変数の列番号を格納する配列
+    int v_dim = 0;  // 目的変数の個数
     int o_dim = 0;  // 説明変数の個数
     int *o_col = (int *)malloc(sizeof(int));    // 説明変数の列番号を格納する配列
-    col = 0;    // 列番号のカーソル
-    while (strcmp(explanatory, "END") != 0 || o_dim == 0) {
-        // 説明変数の列番号を調べる
-        fseek(fp, 0, SEEK_SET);
-        fgets(buf, sizeof(buf), fp);
-        token = strtok(buf, ";\n");
-        col = 0;
 
-        while (token != NULL) {
-            // printf("comparing with %s: %d\n", token, strcmp(token, explanatory));
+    // この上にあった変数設定部分を関数化する
+    set_variables(fp, fp_log, &v_dim, v_col, &o_dim, o_col);
 
-            // ALLと書いた場合(目的変数以外全ての列を説明変数として処理する)
-            if (strcmp(explanatory, "ALL") == 0) {
-                if (strcmp(token, objective) != 0) {
-                    o_col = (int *)realloc(o_col, sizeof(int) * (o_dim + 1));   // 説明変数の列番号を格納する配列のサイズを1増やす
-                    o_col[o_dim] = col;
-                    // col++;
-                    o_dim++;
-                }
-                // printf("You input ALL.\n");
-                // token = strtok(NULL, ";\n");
-            }
-
-            // ENDを入力した場合(説明変数の個数が0の場合を除いて、説明変数の入力を終了する)
-            else if (strcmp(explanatory, "END") == 0) {
-                // 説明変数の個数が0の場合、説明変数を少なくとも一つ入力するよう指示する
-                if (o_dim == 0) {
-                    printf("Please input at least one explanatory variable.\n");
-                    break;
-                }
-                break;
-            }
-
-            // 何かしらの変数名を書いた場合
-            else if (strcmp(token, explanatory) == 0) {
-                // 列番号に重複がある場合は重複していると表示する
-                printf("v_col: %d, token: %s\n", v_col, token);
-                int flag = 0;
-                // 目的変数と説明変数の列番号が重複している場合は、重複していると表示する
-                if (col == v_col) {
-                    printf("The column number %d is already registered as objective variables.\n", col);
-                    flag = 1;
-                    col = 0;
-                    break;
-                }
-                for (int i = 0; i < o_dim; i++) {
-                    if (o_col[i] == col) {
-                        printf("The column number %d is already registered as explanatory variables.\n", col);
-                        flag = 1;
-                        col = 0;
-                        break;
-                    }
-                }
-                // 説明変数の列番号を格納する配列に、説明変数の列番号を追加する
-                if (flag == 0) {
-                    // 配列サイズを1増やす
-                    if (o_dim != 0) {
-                        o_col = (int *)realloc(o_col, sizeof(int) * (o_dim + 1));
-                    }
-                    o_col[o_dim] = col;
-                    o_dim++;
-                    printf("%s is successfully registered.\n", explanatory);
-                    col = 0;    // カーソルを先頭に戻す
-                    printf("o_dim: %d, o_col:", o_dim);
-                    for (int i = 0; i < o_dim; i++) {
-                        printf("%d ", o_col[i]);
-                    }
-                    printf("\n");
-                }
-                break;
-            }
-            // 追加
-            else if (col == num_var - 1){
-                printf("Cannot find the explanatory variable. Please input the correct name of the explanatory variable.\n");
-            }
-            // 追加終わり
-            token = strtok(NULL, ";\n");
-            col++;
-        }   // while (token != NULL) の終わり(変数名の探索の終わり)
-
-        // 説明変数の列番号が見つからなかったら正しい変数名を入力するよう指示する
-        if (o_dim == 0) {
-            printf("Cannot find the explanatory variable. Please input the correct name of the explanatory variable.\n");
-            // break;
-        }
     
-        // 説明変数の列番号を昇順にソートする
-        for (int i = 0; i < o_dim - 1; i++) {
-            for (int j = i + 1; j < o_dim; j++) {
-                if (o_col[i] > o_col[j]) {
-                    int tmp = o_col[i];
-                    o_col[i] = o_col[j];
-                    o_col[j] = tmp;
-                }
-            }
-        }
-
-        // ALL or 説明変数が1つ以上ある中でのENTER の場合、説明変数の入力を終える
-        if ((strcmp(explanatory, "END") == 0 && o_dim != 0)|| strcmp(explanatory, "ALL") == 0) {
-            break;
-        }    
-
-        // それ以外の場合は、次の説明変数を入力する
-        printf("Input the name of the explanatory variables (ALL to select all or END to quit selecting): ");
-        scanf("%[^\n]%*1[\n]", explanatory);   
-        printf("You input %s.\n", explanatory);
-    }   // while (strcmp(explanatory, "") != 0) の終わり(説明変数の入力の終わり)
-    // logファイルに説明変数名を書き込む
-    fprintf(fp_log, "explanatory variables : ");
-    // o_colの要素に対応する変数名をfpの1行目から取得して書き込むとともに、リスト"explanatory_list"にも格納する
-    char **explanatory_list = (char **)malloc(sizeof(char *) * o_dim);
-    for (int i = 0; i < o_dim; i++) {
-        fseek(fp, 0, SEEK_SET);
-        fgets(buf, sizeof(buf), fp);
-        token = strtok(buf, ";\n");
-        col = 0;
-        while (token != NULL) {
-            if (col == o_col[i]) {
-                fprintf(fp_log, "%s ", token);
-                explanatory_list[i] = (char *)malloc(sizeof(char) * strlen(token));
-                strcpy(explanatory_list[i], token);
-            }
-            token = strtok(NULL, ";\n");
-            col++;
-        }
-    }
-
-    // 目的変数と説明変数の列番号を表示し、ニューラルネットワークの設計を開始すると宣言する
-    printf("The column number of the objective variable is %d.\n", v_col);
-    printf("The column number of the explanatory variables are ");
-    for (int i = 0; i < o_dim; i++) {
-        printf("%d ", o_col[i]);
-    }
-    printf(".\n");
     printf("Start designing the neural network.\n");
 
-    // この上の変数設定部分を関数化する
-
-    // set_variables(fp, fp_log, &v_dim, &v_col, &o_dim, o_col, explanatory_list);
-
+    
     // <<<<<<<<ニューラルネットワークの設計>>>>>>>>>>>>>
 
-    // ニューラルネットワークの層の数、各層のニューロンの個数をスペース区切りでコマンドラインから読み込む
-    printf("Input the number of layers and the number of neurons in each layer: ");
     int D;  // ニューラルネットワークの層の数
-    scanf("%d", &D);
-    int *N = (int *)malloc(sizeof(int) * D);    // 各層のニューロンの個数を格納する配列
-    for (int i = 0; i < D; i++) {
-        scanf("%d", &N[i]);
-    }
-
-    // ニューラルネットワークの層の数と各層のニューロンの個数を表示する
-    printf("The number of  neuron layers is %d.\n", D+2);
-    printf("The number of neurons in each layer are \n");
-    printf("    input layer: %7d\n", o_dim);
-    for (int i = 0; i < D; i++) {
-        printf("    %2d middle layer: %3d\n", i+1, N[i]);
-    }
-    printf("    output layer: %7d\n", v_dim);   // 今回は出力層のニューロンは1つとあらかじめて決めてしまう
+    double alpha = 0.00001; // 学習率
+    int *N = design_network(fp_log, &D, o_dim, v_dim, &alpha);  // 各層のニューロンの数を格納する配列
 
     // <<<<<<<<<<<<学習の仕方の設定>>>>>>>>>>>>>
 
-    // char buf[256];  // ファイルの1行を読み込むためのバッファ(上を関数化した際に必要)
-
-    // 学習率の取得
-    printf("Input the learning rate: ");
-    scanf("%lf", &alpha);
-    printf("The learning rate is %f.\n", alpha);
-    fprintf(fp_log, "The learning rate : %f.\n", alpha);
-
-    printf("Now Loading Data File...\n");
-
-    // データサイズの取得
-    // データの行数を数える
-    int data_size = -1; // 1行目は変数名なので、データの行数は1つ少ない
-    while (fgets(buf, sizeof(buf), fp) != NULL) {
-        data_size++;
-    }
-    fseek(fp, 0, SEEK_SET);
-    fgets(buf, sizeof(buf), fp);    // この時点でfpは2行目を指している(データの1行目を読み飛ばした)
-    printf("The number of data is %d.\n", data_size);
-    fprintf(fp_log, "The total number of data : %d.\n", data_size);
-
-    // バッチサイズとイテレーション数をコマンドラインから読み込む
-    printf("Input the batch size and the number of iterations: ");
+    int data_size; // 1行目は変数名なので、データの行数は1つ少ない
     int b_size; // バッチサイズ
     int iter;   // イテレーション数
-    scanf("%d %d", &b_size, &iter);
+    int test_size;   // テストデータのサイズ
+    int test_iter;   // テストデータのイテレーション数
+    int total_epoch; // エポック数
 
-    printf("The batch size is %d.\n", b_size);
-    fprintf(fp_log, "The batch size : %d.\n", b_size);
-
-    printf("The number of iterations is %d.\n", iter);
-    fprintf(fp_log, "The number of iterations : %d.\n", iter);
-
-    int test_size = data_size - b_size * iter;   // テストデータのサイズ
-    int test_iter = (int) (test_size / b_size);  // テストデータのイテレーション数
-    // int test_iter = 1;
-    printf("So, the size of test data is %d.\n", b_size * test_iter);
-    fprintf(fp_log, "The size of test data : %d.\n", b_size * test_iter);
-
-    double test_scores[iter+1]; // テストデータのスコアを格納する配列
-
-    // エポック数を取得する
-    int total_epoch;
-    printf("Input the total number of epochs: ");
-    scanf("%d", &total_epoch);
-    printf("The total number of epochs is %d.\n", total_epoch);
-    fprintf(fp_log, "The total number of epochs : %d.\n", total_epoch);
+    set_learning(fp, fp_log, &data_size, &b_size, &iter, &test_size, &test_iter, &total_epoch);
 
     // logファイルに記録する内容を指定する
     printf("You can choose the contents to be recorded in the log file.\n");
@@ -357,19 +100,20 @@ int main(int argc, char **argv) {
     fprintf(fp_graph, "set ylabel \"coefficient of determination\"\n");
     fprintf(fp_graph, "set yrange[-300.0:1.0]\n");
     fprintf(fp_graph, "plot");
-    for (int i = 0; i < iter+1; i++) {
+    for (int i = 0; i < (iter)+1; i++) {
         fprintf(fp_graph, " '-' with lines title 'Cross Validation #%d',", i+1);
     }
     fprintf(fp_graph, "\n");
 
     // <<<<<<<<<<<<<<データの読み込みと学習>>>>>>>>>>>>>>>
-
-    // int col = 0;    // 列番号のカーソル // 変数名捜索のためのcolは関数内に格納するため、外出しにする
+    double test_scores[iter+1]; // テストデータのスコアを格納する配列
+    int col = 0;    // 列番号のカーソル // 変数名捜索のためのcolは関数内に格納するため、外出しにする
+    char buf[256];  // ファイルの1行を読み込むためのバッファ
 
     // 交差検証開始(CRVL は交差検証の何フェーズ目かを表す)
-    for (int CRVL = 0; CRVL < iter+1; CRVL++) {  
+    for (int CRVL = 0; CRVL < (iter)+1; CRVL++) {  
     
-    // char *token;   // 上の方の定義は関数内に格納するため、ここで定義する
+    char *token;   // 上の方の定義は関数内に格納するため、ここで定義する
     
     // ニューラルネットワークを初期化する
     // ニューラルネットワークの層を表す構造体の線形リストの先頭へのポインタを作る
@@ -399,9 +143,9 @@ int main(int argc, char **argv) {
 
     // テストデータの読み込み
     // テストデータの説明変数の値を```x```、目的変数の値を```y```に、それぞれ二次元配列のサイズを拡張した上で格納する
-    double **x_test = (double **)malloc(sizeof(double *) * b_size * test_iter);  // test_sizeにするとエラーが出る(当たり前)
-    double **y_test = (double **)malloc(sizeof(double *) * b_size * test_iter);
-    for (int b = 0; b < b_size * test_iter; b++) {
+    double **x_test = (double **)malloc(sizeof(double *) * (b_size) * (test_iter));  // test_sizeにするとエラーが出る(当たり前)
+    double **y_test = (double **)malloc(sizeof(double *) * (b_size) * (test_iter));
+    for (int b = 0; b < (b_size) * (test_iter); b++) {
         x_test[b] = (double *)malloc(sizeof(double) * o_dim);
         y_test[b] = (double *)malloc(sizeof(double) * v_dim);
     }
@@ -412,7 +156,7 @@ int main(int argc, char **argv) {
     // fprintf(fp_log, "The test data has been initialized.\n");
 
     // 訓練データに対する決定係数の推移を追うための配列を初期化する
-    double *r2_epoch = (double *)malloc(sizeof(double) * total_epoch);
+    double *r2_epoch = (double *)malloc(sizeof(double) * (total_epoch));
 
     // データを読み込んでニューラルネットワークを学習させる
 
@@ -423,12 +167,12 @@ int main(int argc, char **argv) {
 
 
     // ミニバッチを取り出し、順伝播、誤差逆伝播を行う
-    for (int iter_num = 0; iter_num<iter; iter_num++) {
+    for (int iter_num = 0; iter_num < iter; iter_num++) {
 
         // テストデータの読み込み(データセットの最後の部分をテストデータにしない場合)
         if (iter_num == CRVL && test_flag == 0) {
             // テストデータの説明変数の値を```x```、目的変数の値を```y```に格納する
-            for (int b = 0; b < b_size*test_iter; b++) {
+            for (int b = 0; b < (b_size)*(test_iter); b++) {
                 fgets(buf, sizeof(buf), fp);
                 token = strtok(buf, ";\n");
                 col = 0;
@@ -438,8 +182,13 @@ int main(int argc, char **argv) {
                             x_test[b][i] = atof(token);
                         }
                     }
-                    if (col == v_col) {
-                        y_test[b][0] = atof(token);
+                    // if (col == v_col) {
+                    //     y_test[b][0] = atof(token);
+                    // }
+                    for (int i = 0; i < v_dim; i++) {
+                        if (col == v_col[i]) {
+                            y_test[b][i] = atof(token);
+                        }
                     }
                     token = strtok(NULL, ";\n");
                     col++;
@@ -456,8 +205,8 @@ int main(int argc, char **argv) {
         // 訓練データの読み込み
         else {
         // バッチサイズ分の行を読み込むごとに、説明変数の値を```x```、目的変数の値を```y```に、それぞれ二次元配列のサイズを拡張した上で格納する
-        double **x = (double **)malloc(sizeof(double *) * b_size);
-        double **y = (double **)malloc(sizeof(double *) * b_size);
+        double **x = (double **)malloc(sizeof(double *) * (b_size));
+        double **y = (double **)malloc(sizeof(double *) * (b_size));
         for (int b = 0; b < b_size; b++) {
             x[b] = (double *)malloc(sizeof(double) * o_dim);
             y[b] = (double *)malloc(sizeof(double) * v_dim);
@@ -473,9 +222,14 @@ int main(int argc, char **argv) {
                         x[b][i] = atof(token);
                     }
                 }
-                if (col == v_col) {
-                    y[b][0] = atof(token);
+                for (int i = 0; i < v_dim; i++) {
+                    if (col == v_col[i]) {
+                        y[b][i] = atof(token);
+                    }
                 }
+                // if (col == v_col) {
+                //     y[b][0] = atof(token);
+                // }
                 token = strtok(NULL, ";\n");
                 col++;
             }
@@ -538,7 +292,7 @@ int main(int argc, char **argv) {
         fprintf(fp_log, "The coefficient of determination of epoch %d iteration %d is %f.\n", epoch+1, iter_num+1, r2);
 
         // エポック終了時には、そのエポックの決定係数を配列に格納する
-        if (iter_num == iter-1) {
+        if (iter_num == (iter)-1) {
             r2_epoch[epoch] = r2;
         }
 
@@ -549,7 +303,7 @@ int main(int argc, char **argv) {
     // テストデータの読み込み(データセットの最後の部分をテストデータにする場合)
     if (test_flag == 0) {
         // テストデータの説明変数の値を```x```、目的変数の値を```y```に格納する
-        for (int b = 0; b < b_size*test_iter; b++) {
+        for (int b = 0; b < (b_size)*(test_iter); b++) {
             fgets(buf, sizeof(buf), fp);
             token = strtok(buf, ";\n");
             col = 0;
@@ -559,8 +313,13 @@ int main(int argc, char **argv) {
                         x_test[b][i] = atof(token);
                     }
                 }
-                if (col == v_col) {
-                    y_test[b][0] = atof(token);
+                // if (col == v_col) {
+                //     y_test[b][0] = atof(token);
+                // }
+                for (int i = 0; i < v_dim; i++) {
+                    if (col == v_col[i]) {
+                        y_test[b][i] = atof(token);
+                    }
                 }
                 token = strtok(NULL, ";\n");
                 col++;
@@ -584,20 +343,20 @@ int main(int argc, char **argv) {
     // fprintf(fp_log, "Now calculating the coefficient of determination of test data...\n");
     neural_network = rewind_network(neural_network);   // ポインタを末尾から先頭に戻す
     // テストデータをバッチサイズ分の行ずつ読み込んで、順伝播を行い、出力の推定量を二次元配列に格納する
-    double **y_hat = (double **)malloc(sizeof(double *) * b_size * test_iter);
-    for (int b = 0; b < b_size * test_iter; b++) {
+    double **y_hat = (double **)malloc(sizeof(double *) * (b_size) * (test_iter));
+    for (int b = 0; b < (b_size) * (test_iter); b++) {
         y_hat[b] = (double *)malloc(sizeof(double) * v_dim);
     }
     // テストデータをバッチサイズ分の行ずつ読み込んで、順伝播を行い、出力の推定量を二次元配列に格納する
     for (int iter_num = 0; iter_num < test_iter; iter_num++) {
-        neural_network = forward_prop(fp_log, &x_test[iter_num*b_size], &y_test[iter_num*b_size], neural_network, leakly_relu, leakly_relu_grad, program_confirmation, show_values);
+        neural_network = forward_prop(fp_log, &x_test[iter_num*(b_size)], &y_test[iter_num*(b_size)], neural_network, leakly_relu, leakly_relu_grad, program_confirmation, show_values);
         estimate_sub(b_size, iter_num, v_dim, neural_network, y_hat);
 
     }
 
     // テストデータに対する当てはめ値を表示する
     fprintf(fp_log, "The value estimated from test data is below : \n");
-    for (int b = 0; b < b_size*test_iter; b++) {
+    for (int b = 0; b < (b_size)*(test_iter); b++) {
         for (int i = 0; i < v_dim; i++) {
             fprintf(fp_log, "%f ", y_hat[b][i]);
         }
@@ -606,13 +365,13 @@ int main(int argc, char **argv) {
     fprintf(fp_log, "\n");
 
     // テストデータの正解値と当てはめ値から決定係数を計算し表示する
-    double r2 = calc_r2(y_test, y_hat, b_size*test_iter, v_dim);
+    double r2 = calc_r2(y_test, y_hat, (b_size)*(test_iter), v_dim);
     fprintf(fp_log, "The coefficient of determination of test data is %f.\n", r2);
     // テストデータの決定係数を配列に格納する
     test_scores[CRVL] = r2;
 
     // // 学習時の決定係数の推移をグラフで表示する
-    for (int i = 0; i < total_epoch; i++) {
+    for (int i = 0; i < (total_epoch); i++) {
         fprintf(fp_graph, "%d %f\n", i+1, r2_epoch[i]);
     }
     fprintf(fp_graph, "e\n");
@@ -629,12 +388,12 @@ int main(int argc, char **argv) {
     // 交差検証の結果を表示する
     fprintf(fp_log, "--------Review of the coefficient of determination of test data:------------\n");
     double test_score_sum = 0.0;
-    for (int CRVL = 0; CRVL < iter+1; CRVL++) {
+    for (int CRVL = 0; CRVL < (iter)+1; CRVL++) {
         fprintf(fp_log, "The coefficient of determination of test data in Cross VaLidation #%d is %f.\n", CRVL+1, test_scores[CRVL]);
         test_score_sum += test_scores[CRVL];
     }
-    fprintf(fp_log, "The average of the coefficient of determination of test data is %f.\n", test_score_sum / (iter+1));
-    printf("\nThe average of the coefficient of determination of test data is %f.\n", test_score_sum / (iter+1));
+    fprintf(fp_log, "The average of the coefficient of determination of test data is %f.\n", test_score_sum / ((iter)+1));
+    printf("\nThe average of the coefficient of determination of test data is %f.\n", test_score_sum / ((iter)+1));
 
     return 0;
 }

@@ -358,3 +358,81 @@ void set_variables(FILE *fp, FILE *fp_log, int *v_dim, int *v_col, int *o_dim, i
     }
     printf(".\n");
 }
+
+int *design_network(FILE *fp_log, int *D, int o_dim, int v_dim, double *alpha){
+    // ニューラルネットワークの層の数、各層のニューロンの個数をスペース区切りでコマンドラインから読み込む
+    printf("Input the number of layers: ");
+    scanf("%d", D);
+    printf("\nInput the number of neurons in each layer (put ENTER everytime!): ");
+    int *N = (int *)malloc(sizeof(int) * (*D));    // 各層のニューロンの個数を格納する配列
+    for (int i = 0; i < *D; i++) {
+        scanf("%d", &N[i]);
+    }
+
+    // ニューラルネットワークの層の数と各層のニューロンの個数を表示する
+    printf("The number of  neuron layers is %d.\n", (*D)+2);
+    printf("The number of neurons in each layer are \n");
+    printf("    input layer: %7d\n", o_dim);
+    for (int i = 0; i < *D; i++) {
+        printf("    %2d middle layer: %3d\n", i+1, N[i]);
+    }
+    printf("    output layer: %7d\n", v_dim);
+    fprintf(fp_log, "Design of NN: %d -", o_dim);
+    for (int i = 0; i < *D; i++) {
+        fprintf(fp_log, " %d -", N[i]);
+    }
+    fprintf(fp_log, " %d\n", v_dim);
+
+    // 学習率の取得
+    printf("Input the learning rate: ");
+    scanf("%lf", alpha);
+    printf("The learning rate is %f.\n", *alpha);
+    fprintf(fp_log, "The learning rate : %f.\n", *alpha);
+
+    return N;
+}
+
+void set_learning(FILE *fp, FILE *fp_log, int *data_size, int *b_size, int *iter, int *test_size, int *test_iter, int *total_epoch) {
+
+    char buf[256];  // ファイルの1行を読み込むためのバッファ
+
+    printf("Now Loading Data File...\n");
+
+    // データサイズの取得
+    // データの行数を数える
+    *data_size = -1; // 1行目は変数名なので、データの行数は1つ少ない
+    printf("A\n");
+    while (fgets(buf, sizeof(buf), fp) != NULL) {
+        (*data_size)++;
+    }
+    printf("B\n");
+    fseek(fp, 0, SEEK_SET);
+    printf("C\n");
+    fgets(buf, sizeof(buf), fp);    // この時点でfpは2行目を指している(データの1行目を読み飛ばした)
+    printf("D\n");
+    printf("The number of data is %d.\n", *data_size);
+    fprintf(fp_log, "The total number of data : %d.\n", *data_size);
+
+    // バッチサイズとイテレーション数をコマンドラインから読み込む
+    printf("Input the batch size and the number of iterations: ");
+    scanf("%d %d", b_size, iter);
+
+    printf("The batch size is %d.\n", *b_size);
+    fprintf(fp_log, "The batch size : %d.\n", *b_size);
+
+    printf("The number of iterations is %d.\n", *iter);
+    fprintf(fp_log, "The number of iterations : %d.\n", *iter);
+
+    *test_size = *data_size - (*b_size) * (*iter);   // テストデータのサイズ
+    *test_iter = (int) (*test_size / *b_size);  // テストデータのイテレーション数
+    // int test_iter = 1;
+    printf("So, the size of test data is %d.\n", *b_size * *test_iter);
+    fprintf(fp_log, "The size of test data : %d.\n", *b_size * *test_iter);
+
+    // エポック数を取得する
+    printf("Input the total number of epochs: ");
+    scanf("%d", total_epoch);
+    printf("The total number of epochs is %d.\n", *total_epoch);
+    fprintf(fp_log, "The total number of epochs : %d.\n", *total_epoch);
+
+}
