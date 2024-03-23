@@ -16,10 +16,11 @@ wine: src/adv_regression.c src/init.c
 	make demo
 	make do
 
-separate: src/adv_regression.c src/init.c src/setting.c
+separate: src/adv_regression.c src/init.c src/setting.c src/learn.c
 	make init.o
 	make adv_regression.o
 	make setting.o
+	make learn.o
 	make lib2
 	make demo
 	make sample
@@ -36,14 +37,17 @@ demo: lib/libadv_regression.a
 lib: src/init.o  src/adv_regression.o
 	$(AR) rsv lib/libadv_regression.a src/init.o src/adv_regression.o
 
-lib2: src/init.o  src/adv_regression.o src/setting.o
-	$(AR) rsv lib/libadv_regression.a src/init.o src/adv_regression.o src/setting.o
+lib2: src/init.o  src/adv_regression.o src/setting.o src/learn.o
+	$(AR) rsv lib/libadv_regression.a src/init.o src/adv_regression.o src/setting.o src/learn.o
 
 init.o: src/init.c
 	$(CC) -I./include -c -o src/init.o src/init.c 
 
 setting.o: src/setting.c
 	$(CC) -I./include -c -o src/setting.o src/setting.c
+
+learn.o: src/learn.C
+	$(CC) -I./include -c -o src/learn.o src/learn.c
 
 adv_regression.o: src/adv_regression.c
 	$(CC) -I./include -c -o src/adv_regression.o src/adv_regression.c 

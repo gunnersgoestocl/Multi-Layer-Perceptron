@@ -4,6 +4,7 @@
 #include <string.h>
 #include "init.h"
 #include "setting.h"
+#include "learn.h"
 #include "graph.h"
 // #include "prop.h"
 
@@ -12,8 +13,7 @@ double calc_r2(double **y, double **o, int b_size, int v_dim);
 // main関数
 int main(int argc, char **argv) {
 
-    
-
+    // <<<<<<<<<<<<<<<<<<FILE Pointerの生成>>>>>>>>>>>>>>>>>>>>>>>>>>
     // コマンドラインから分析したいファイル名を読み込む
     char *filename_data = argv[1];
     FILE *fp = fopen(filename_data, "r");
@@ -64,6 +64,11 @@ int main(int argc, char **argv) {
 
     set_learning(fp, fp_log, &data_size, &b_size, &iter, &test_size, &test_iter, &total_epoch);
 
+    // <<<<<<<<<<<<<<記録の設定>>>>>>>>>>>>>>>
+
+    // int program_confirmation;
+    // int show_values;
+
     // logファイルに記録する内容を指定する
     printf("You can choose the contents to be recorded in the log file.\n");
     printf("The contents shown below will be necessarily recorded in the log file.\n");
@@ -106,6 +111,7 @@ int main(int argc, char **argv) {
     fprintf(fp_graph, "\n");
 
     // <<<<<<<<<<<<<<データの読み込みと学習>>>>>>>>>>>>>>>
+
     double test_scores[iter+1]; // テストデータのスコアを格納する配列
     int col = 0;    // 列番号のカーソル // 変数名捜索のためのcolは関数内に格納するため、外出しにする
     char buf[256];  // ファイルの1行を読み込むためのバッファ
@@ -116,24 +122,28 @@ int main(int argc, char **argv) {
     char *token;   // 上の方の定義は関数内に格納するため、ここで定義する
     
     // ニューラルネットワークを初期化する
-    // ニューラルネットワークの層を表す構造体の線形リストの先頭へのポインタを作る
-    network_1layer *neural_network = NULL;
-    // ニューラルネットワークの入力層を表すニューロン層を作る
-    neuron_layer *o_layer = init_neuron_layer(0, o_dim, b_size);
-    // ニューラルネットワークの中間層を表すニューロン層およびネットワーク層の線形リストを作る
-    for (int i=0; i < D; i++){
-        neuron_layer *v_layer = init_neuron_layer(i+1, N[i], b_size);
-        neural_network = push_network_back(o_layer, v_layer, neural_network);
-        o_layer = v_layer;
-    }
-    // ニューラルネットワークの出力層を表すニューロン層を作る
-    neuron_layer *v_layer = init_neuron_layer(D+1, v_dim, b_size);
-    neural_network = push_network_back(o_layer, v_layer, neural_network);    // 第 D+1 層まで初期化されたニューラルネットワークを表す構造体の線形リストができた
-    if (program_confirmation == 1) {
-        fprintf(fp_log, "The neural network has been initialized.\n");
-    }
-    // fprintf(fp_log, "The neural network has been initialized.\n");
-    // ここまでエラーなし 12/30 22:25
+
+    // 関数化すると
+    network_1layer *neural_network = init_network(o_dim, v_dim, b_size, D, N, fp_log, program_confirmation);
+
+    // // ニューラルネットワークの層を表す構造体の線形リストの先頭へのポインタを作る
+    // network_1layer *neural_network = NULL;
+    // // ニューラルネットワークの入力層を表すニューロン層を作る
+    // neuron_layer *o_layer = init_neuron_layer(0, o_dim, b_size);
+    // // ニューラルネットワークの中間層を表すニューロン層およびネットワーク層の線形リストを作る
+    // for (int i=0; i < D; i++){
+    //     neuron_layer *v_layer = init_neuron_layer(i+1, N[i], b_size);
+    //     neural_network = push_network_back(o_layer, v_layer, neural_network);
+    //     o_layer = v_layer;
+    // }
+    // // ニューラルネットワークの出力層を表すニューロン層を作る
+    // neuron_layer *v_layer = init_neuron_layer(D+1, v_dim, b_size);
+    // neural_network = push_network_back(o_layer, v_layer, neural_network);    // 第 D+1 層まで初期化されたニューラルネットワークを表す構造体の線形リストができた
+    // if (program_confirmation == 1) {
+    //     fprintf(fp_log, "The neural network has been initialized.\n");
+    // }
+    // // fprintf(fp_log, "The neural network has been initialized.\n");
+    // // ここまでエラーなし 12/30 22:25
 
     // ニューラルネットワークをネットワークグラフで表示する
     if (show_values == 1) {
