@@ -392,7 +392,7 @@ int *design_network(FILE *fp_log, int *D, int o_dim, int v_dim, double *alpha){
     return N;
 }
 
-void set_learning(FILE *fp, FILE *fp_log, int *data_size, int *b_size, int *iter, int *test_size, int *test_iter, int *total_epoch) {
+void set_learning(FILE *fp, FILE *fp_log, int *data_size, int *b_size, int *iter, int *test_size, int *test_iter, int *total_epoch, int *cross_val) {
 
     char buf[256];  // ファイルの1行を読み込むためのバッファ
 
@@ -435,4 +435,8 @@ void set_learning(FILE *fp, FILE *fp_log, int *data_size, int *b_size, int *iter
     printf("The total number of epochs is %d.\n", *total_epoch);
     fprintf(fp_log, "The total number of epochs : %d.\n", *total_epoch);
 
+    // 交差検証を行うか指定する
+    printf("Do you want to apply Cross Validation Method?\n");
+    printf("    1:yes   2:no    (input 1 or 2)  :");
+    scanf("%d", cross_val);
 }

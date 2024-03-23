@@ -30,8 +30,13 @@ int main(int argc, char **argv) {
         exit(1);
     }
 
+    char *filename_graph;
+    int fprint_graph = 0;
     // コマンドラインから学習における精度の推移を出力するファイルを読み込む
-    char *filename_graph = argv[3];
+    if (argc == 3) {
+        filename_graph = argv[3];
+        fprint_graph = 1;
+    }
 
     // <<<<<<<<<<<<<<<<<<<<<<<<変数の取得>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 
@@ -42,10 +47,8 @@ int main(int argc, char **argv) {
 
     // この上にあった変数設定部分を関数化する
     set_variables(fp, fp_log, &v_dim, v_col, &o_dim, o_col);
-
     
     printf("Start designing the neural network.\n");
-
     
     // <<<<<<<<ニューラルネットワークの設計>>>>>>>>>>>>>
 
@@ -61,8 +64,9 @@ int main(int argc, char **argv) {
     int test_size;   // テストデータのサイズ
     int test_iter;   // テストデータのイテレーション数
     int total_epoch; // エポック数
+    int cross_val = 0;      // 交差検証を行うかのフラグ
 
-    set_learning(fp, fp_log, &data_size, &b_size, &iter, &test_size, &test_iter, &total_epoch);
+    set_learning(fp, fp_log, &data_size, &b_size, &iter, &test_size, &test_iter, &total_epoch, &cross_val);
 
     // <<<<<<<<<<<<<<記録の設定>>>>>>>>>>>>>>>
 
@@ -96,62 +100,41 @@ int main(int argc, char **argv) {
     scanf("%d", &show_values);
 
     // 学習時の決定係数の推移をグラフで表示する
-    FILE *fp_graph = popen("gnuplot", "w");
-    fprintf(fp_graph, "set terminal png\n");
-    //fprintf(fp_graph, "set output \"%s\"\n", filename_graph);
-    fprintf(fp_graph, "set output \"%s.png\"\n", filename_graph);
-    fprintf(fp_graph, "set title \"The growth of the coefficient of determination\"\n");
-    fprintf(fp_graph, "set xlabel \"epoch\"\n");
-    fprintf(fp_graph, "set ylabel \"coefficient of determination\"\n");
-    fprintf(fp_graph, "set yrange[-300.0:1.0]\n");
-    fprintf(fp_graph, "plot");
-    for (int i = 0; i < (iter)+1; i++) {
-        fprintf(fp_graph, " '-' with lines title 'Cross Validation #%d',", i+1);
+    FILE *fp_graph;
+    if (fprint_graph == 1) {
+        fp_graph = popen("gnuplot", "w");
+        fprintf(fp_graph, "set terminal png\n");
+        fprintf(fp_graph, "set output \"%s.png\"\n", filename_graph);
+        fprintf(fp_graph, "set title \"The growth of the coefficient of determination\"\n");
+        fprintf(fp_graph, "set xlabel \"epoch\"\n");
+        fprintf(fp_graph, "set ylabel \"coefficient of determination\"\n");
+        fprintf(fp_graph, "set yrange[-300.0:1.0]\n");
+        fprintf(fp_graph, "plot");
+        for (int i = 0; i < (iter)+1; i++) {
+            fprintf(fp_graph, " '-' with lines title 'Cross Validation #%d',", i+1);
+        }
+        fprintf(fp_graph, "\n");
     }
-    fprintf(fp_graph, "\n");
 
     // <<<<<<<<<<<<<<データの読み込みと学習>>>>>>>>>>>>>>>
 
     double test_scores[iter+1]; // テストデータのスコアを格納する配列
-    int col = 0;    // 列番号のカーソル // 変数名捜索のためのcolは関数内に格納するため、外出しにする
-    char buf[256];  // ファイルの1行を読み込むためのバッファ
+    char buf[256];  // ファイルの1行目を読み飛ばすためのバッファ
 
     // 交差検証開始(CRVL は交差検証の何フェーズ目かを表す)
     for (int CRVL = 0; CRVL < (iter)+1; CRVL++) {  
     
-    char *token;   // 上の方の定義は関数内に格納するため、ここで定義する
-    
-    // ニューラルネットワークを初期化する
-
-    // 関数化すると
+    // ニューラルネットワークを初期化する(関数化済み)
     network_1layer *neural_network = init_network(o_dim, v_dim, b_size, D, N, fp_log, program_confirmation);
-
-    // // ニューラルネットワークの層を表す構造体の線形リストの先頭へのポインタを作る
-    // network_1layer *neural_network = NULL;
-    // // ニューラルネットワークの入力層を表すニューロン層を作る
-    // neuron_layer *o_layer = init_neuron_layer(0, o_dim, b_size);
-    // // ニューラルネットワークの中間層を表すニューロン層およびネットワーク層の線形リストを作る
-    // for (int i=0; i < D; i++){
-    //     neuron_layer *v_layer = init_neuron_layer(i+1, N[i], b_size);
-    //     neural_network = push_network_back(o_layer, v_layer, neural_network);
-    //     o_layer = v_layer;
-    // }
-    // // ニューラルネットワークの出力層を表すニューロン層を作る
-    // neuron_layer *v_layer = init_neuron_layer(D+1, v_dim, b_size);
-    // neural_network = push_network_back(o_layer, v_layer, neural_network);    // 第 D+1 層まで初期化されたニューラルネットワークを表す構造体の線形リストができた
-    // if (program_confirmation == 1) {
-    //     fprintf(fp_log, "The neural network has been initialized.\n");
-    // }
-    // // fprintf(fp_log, "The neural network has been initialized.\n");
-    // // ここまでエラーなし 12/30 22:25
 
     // ニューラルネットワークをネットワークグラフで表示する
     if (show_values == 1) {
         print_network(neural_network, fp_log);
     }
-    // print_network(neural_network, fp_log);
 
     // テストデータの読み込み
+    int test_flag = 0;  // テストデータの読み込みが完了したら1にする
+
     // テストデータの説明変数の値を```x```、目的変数の値を```y```に、それぞれ二次元配列のサイズを拡張した上で格納する
     double **x_test = (double **)malloc(sizeof(double *) * (b_size) * (test_iter));  // test_sizeにするとエラーが出る(当たり前)
     double **y_test = (double **)malloc(sizeof(double *) * (b_size) * (test_iter));
@@ -159,11 +142,10 @@ int main(int argc, char **argv) {
         x_test[b] = (double *)malloc(sizeof(double) * o_dim);
         y_test[b] = (double *)malloc(sizeof(double) * v_dim);
     }
-    int test_flag = 0;  // テストデータの読み込みが完了したら1にする
+    
     if (program_confirmation == 1) {
         fprintf(fp_log, "The test data has been initialized.\n");
     }
-    // fprintf(fp_log, "The test data has been initialized.\n");
 
     // 訓練データに対する決定係数の推移を追うための配列を初期化する
     double *r2_epoch = (double *)malloc(sizeof(double) * (total_epoch));
@@ -181,35 +163,13 @@ int main(int argc, char **argv) {
 
         // テストデータの読み込み(データセットの最後の部分をテストデータにしない場合)
         if (iter_num == CRVL && test_flag == 0) {
-            // テストデータの説明変数の値を```x```、目的変数の値を```y```に格納する
-            for (int b = 0; b < (b_size)*(test_iter); b++) {
-                fgets(buf, sizeof(buf), fp);
-                token = strtok(buf, ";\n");
-                col = 0;
-                while (token != NULL) {
-                    for (int i = 0; i < o_dim; i++) {
-                        if (col == o_col[i]) {
-                            x_test[b][i] = atof(token);
-                        }
-                    }
-                    // if (col == v_col) {
-                    //     y_test[b][0] = atof(token);
-                    // }
-                    for (int i = 0; i < v_dim; i++) {
-                        if (col == v_col[i]) {
-                            y_test[b][i] = atof(token);
-                        }
-                    }
-                    token = strtok(NULL, ";\n");
-                    col++;
-                }
-            }   // 1バッチのデータ読み込み完了
+            // テストデータの読み込みを関数化(テストデータの説明変数の値を```x_test```、目的変数の値を```y_test```に格納する)
+            load_testData(fp, &test_flag, b_size, test_iter, x_test, y_test, o_dim, o_col, v_dim, v_col);   // 1バッチのデータ読み込み完了
+            iter_num--;     // これはtest_flag == 0の時しか発動させてはいけない
+
             if (program_confirmation == 1) {
                 fprintf(fp_log, "The test data has been loaded.\n");
             }
-            // fprintf(fp_log, "The test data has been loaded.\n");
-            test_flag = 1;
-            iter_num--;
         }
 
         // 訓練データの読み込み
@@ -222,40 +182,11 @@ int main(int argc, char **argv) {
             y[b] = (double *)malloc(sizeof(double) * v_dim);
         }
         // バッチサイズ分の行を読み込むごとに、説明変数の値を```x```、目的変数の値を```y```に格納する
-        for (int b = 0; b < b_size; b++) {
-            fgets(buf, sizeof(buf), fp);
-            token = strtok(buf, ";\n");
-            col = 0;
-            while (token != NULL) {
-                for (int i = 0; i < o_dim; i++) {
-                    if (col == o_col[i]) {
-                        x[b][i] = atof(token);
-                    }
-                }
-                for (int i = 0; i < v_dim; i++) {
-                    if (col == v_col[i]) {
-                        y[b][i] = atof(token);
-                    }
-                }
-                // if (col == v_col) {
-                //     y[b][0] = atof(token);
-                // }
-                token = strtok(NULL, ";\n");
-                col++;
-            }
-        }   // 1バッチのデータ読み込み完了
+        load_Data(fp, b_size, x, y, o_dim, o_col, v_dim, v_col);     // 1バッチのデータ読み込み完了
+
         if (program_confirmation == 1) {
             fprintf(fp_log, "The data of epoch %d iteration %d has been loaded.\n", epoch+1, iter_num+1);
         }
-        // fprintf(fp_log, "The data of epoch %d iteration %d has been loaded.\n", epoch+1, iter_num+1);
-        // // xの値を表示する
-        // for (int b = 0; b < b_size; b++) {
-        //     for (int i = 0; i < o_dim; i++) {
-        //         printf("%f ", x[b][i]);
-        //     }
-        //     printf("\n");
-        // }
-        // ここまでエラーなし 12/30 22:27
 
         // 順伝播を行う
         neural_network = forward_prop(fp_log, x, y, neural_network, leakly_relu, leakly_relu_grad, program_confirmation, show_values);
@@ -270,7 +201,7 @@ int main(int argc, char **argv) {
 
         if (program_confirmation == 1) {
             fprintf(fp_log, "The estimation of epoch %d iteration %d has been completed. Deviation is shown below.\n", epoch+1, iter_num+1);
-            // y_hatの値を表示する
+            // y_hat(モデルによる推定値)とy(正解データ)との値を表示する
             for (int b = 0; b < b_size; b++) {
                 for (int i = 0; i < v_dim; i++) {
                     fprintf(fp_log, "%f ", y_hat[b][i] - y[b][i]);
@@ -279,15 +210,6 @@ int main(int argc, char **argv) {
             }
             fprintf(fp_log, "\n");
         }
-        // fprintf(fp_log, "The estimation of epoch %d iteration %d has been completed. Deviation is shown below.\n", epoch+1, iter_num+1);
-        // // y_hatの値を表示する
-        // for (int b = 0; b < b_size; b++) {
-        //     for (int i = 0; i < v_dim; i++) {
-        //         fprintf(fp_log, "%f ", y_hat[b][i] - y[b][i]);
-        //     }
-        //     // printf("\n");
-        // }
-        // fprintf(fp_log, "\n");
         // ここまでエラーなし 12/30 22:53
 
         // 誤差逆伝播を行いニューラルネットワークを更新する
@@ -295,7 +217,6 @@ int main(int argc, char **argv) {
         if (program_confirmation == 1) {
             fprintf(fp_log, "The back propagation of epoch %d iteration %d has been completed.\n", epoch+1, iter_num+1);
         }
-        // fprintf(fp_log, "The back propagation of epoch %d iteration %d has been completed.\n", epoch+1, iter_num+1);
 
         // 1イテレーションごとの決定係数を計算し表示する
         double r2 = calc_r2(y, y_hat, b_size, v_dim);
@@ -307,34 +228,14 @@ int main(int argc, char **argv) {
         }
 
         }   // else(訓練データを読んだ場合)の終わり
+        
     }   // ミニバッチを取り出し、順伝播、誤差逆伝播を行うループの終わり
 
 
     // テストデータの読み込み(データセットの最後の部分をテストデータにする場合)
     if (test_flag == 0) {
-        // テストデータの説明変数の値を```x```、目的変数の値を```y```に格納する
-        for (int b = 0; b < (b_size)*(test_iter); b++) {
-            fgets(buf, sizeof(buf), fp);
-            token = strtok(buf, ";\n");
-            col = 0;
-            while (token != NULL) {
-                for (int i = 0; i < o_dim; i++) {
-                    if (col == o_col[i]) {
-                        x_test[b][i] = atof(token);
-                    }
-                }
-                // if (col == v_col) {
-                //     y_test[b][0] = atof(token);
-                // }
-                for (int i = 0; i < v_dim; i++) {
-                    if (col == v_col[i]) {
-                        y_test[b][i] = atof(token);
-                    }
-                }
-                token = strtok(NULL, ";\n");
-                col++;
-            }
-        }   // 1バッチのデータ読み込み完了
+        // // テストデータの説明変数の値を```x_test```、目的変数の値を```y_test```に格納する
+        load_testData(fp, &test_flag, b_size, test_iter, x_test, y_test, o_dim, o_col, v_dim, v_col);   // 1バッチのデータ読み込み完了
         if (program_confirmation == 1) {
             fprintf(fp_log, "The test data has been loaded.\n");
         }
@@ -381,10 +282,12 @@ int main(int argc, char **argv) {
     test_scores[CRVL] = r2;
 
     // // 学習時の決定係数の推移をグラフで表示する
-    for (int i = 0; i < (total_epoch); i++) {
-        fprintf(fp_graph, "%d %f\n", i+1, r2_epoch[i]);
+    if (fprint_graph == 1) {
+        for (int i = 0; i < (total_epoch); i++) {
+            fprintf(fp_graph, "%d %f\n", i+1, r2_epoch[i]);
+        }
+        fprintf(fp_graph, "e\n");
     }
-    fprintf(fp_graph, "e\n");
 
     // メモリの解放
     rewind_network(neural_network); // ポインタを末尾から先頭に戻す
@@ -392,8 +295,10 @@ int main(int argc, char **argv) {
 
     } // 交差検証終了
 
-    fprintf(fp_graph, "quit\n");
-    pclose(fp_graph);
+    if (fprint_graph == 1) {
+        fprintf(fp_graph, "quit\n");
+        pclose(fp_graph);
+    }
 
     // 交差検証の結果を表示する
     fprintf(fp_log, "--------Review of the coefficient of determination of test data:------------\n");
