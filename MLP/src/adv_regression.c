@@ -70,8 +70,8 @@ int main(int argc, char **argv) {
 
     // <<<<<<<<<<<<<<記録の設定>>>>>>>>>>>>>>>
 
-    // int program_confirmation;
-    // int show_values;
+    int program_confirmation;
+    int show_values;
 
     // logファイルに記録する内容を指定する
     printf("You can choose the contents to be recorded in the log file.\n");
@@ -91,12 +91,10 @@ int main(int argc, char **argv) {
 
     printf("Do you want the confirmation sentences that the program is working properly?\n");
     printf("    1:yes   2:no    (input 1 or 2) :\n");
-    int program_confirmation;
     scanf("%d", &program_confirmation);
 
     printf("Do you want the values which neurons and weights take in every stage?\n");
     printf("    1:yes   2:no    3:only if iteration ends   (input 1,2 or 3) :\n");
-    int show_values;
     scanf("%d", &show_values);
 
     // 学習時の決定係数の推移をグラフで表示する
@@ -116,64 +114,18 @@ int main(int argc, char **argv) {
         fprintf(fp_graph, "\n");
     }
 
+    // 現状は、テストデータの読み込みタイミングを、ミニバッチに分割したうち、どのバッチに対して行うかで指定している
+    int test_index[b_size*test_iter];    // テストデータの元データにおけるインデックスを格納する配列    今後必要になる可能性あり
+
     // <<<<<<<<<<<<<<データの読み込みと学習>>>>>>>>>>>>>>>
-
-    double test_scores[iter+1]; // テストデータのスコアを格納する、交差検証用の配列
-    int test_index[b_size*test_iter];    // テストデータの元データにおけるインデックスを格納する配列
-
-    // 交差検証開始(CRVL は交差検証の何フェーズ目かを表す)
-    for (int CRVL = 0; CRVL < (iter)+1; CRVL++) {  
-    
-    // ニューラルネットワークを初期化する(関数化済み)
-    network_1layer *neural_network = init_network(o_dim, v_dim, b_size, D, N, fp_log, program_confirmation);
-
-    // ニューラルネットワークをネットワークグラフで表示する
-    if (show_values == 1) {
-        print_network(neural_network, fp_log);
-    }
-
-    // テストデータの説明変数の値を```x```、目的変数の値を```y```に、それぞれ二次元配列のサイズを拡張した上で格納する
-    double **x_test = (double **)malloc(sizeof(double *) * (b_size) * (test_iter));  // test_sizeにするとエラーが出る(当たり前)
-    double **y_test = (double **)malloc(sizeof(double *) * (b_size) * (test_iter));
-    for (int b = 0; b < (b_size) * (test_iter); b++) {
-        x_test[b] = (double *)malloc(sizeof(double) * o_dim);
-        y_test[b] = (double *)malloc(sizeof(double) * v_dim);
-    }
-    
-    if (program_confirmation == 1) {
-        fprintf(fp_log, "The test data has been initialized.\n");
-    }
-
-    // データを読み込みながら、モデルの学習を行う
-    // x_test, y_testにはテストデータが格納され、neural_networkの重みが更新される
-    load_learn(total_epoch, iter, CRVL, b_size, test_iter, x_test, y_test, o_dim, o_col, v_dim, v_col, neural_network, alpha, leakly_relu, leakly_relu_grad, program_confirmation, show_values, fprint_graph, fp, fp_log, fp_graph);
-
-    // テストデータを当てはめた時の決定係数を計算し表示する関数
-    double r2 = test(x_test, y_test, b_size, test_iter, v_dim, neural_network, leakly_relu, leakly_relu_grad, program_confirmation, show_values, fp_log, fp_graph);
-
-    // テストデータの決定係数を配列に格納する
-    test_scores[CRVL] = r2;
-
-    // メモリの解放
-    rewind_network(neural_network); // ポインタを末尾から先頭に戻す
-    free_network(neural_network);
-
-    } // 交差検証終了
+    // 設計したモデルについて、データを与えて、交差検証法により、学習とテストを両方行う関数
+    // 各検証において、訓練時の学習決定係数の推移がグラフに出力され、最終的なテストデータにおける決定係数が列挙される
+    CRVL(total_epoch, iter, b_size, test_iter, D, N, o_dim, o_col, v_dim, v_col, alpha, leakly_relu, leakly_relu_grad, program_confirmation, show_values, fprint_graph, fp, fp_log, fp_graph);
 
     if (fprint_graph == 1) {
         fprintf(fp_graph, "quit\n");
         pclose(fp_graph);
     }
-
-    // 交差検証の結果を表示する
-    fprintf(fp_log, "--------Review of the coefficient of determination of test data:------------\n");
-    double test_score_sum = 0.0;
-    for (int CRVL = 0; CRVL < (iter)+1; CRVL++) {
-        fprintf(fp_log, "The coefficient of determination of test data in Cross VaLidation #%d is %f.\n", CRVL+1, test_scores[CRVL]);
-        test_score_sum += test_scores[CRVL];
-    }
-    fprintf(fp_log, "The average of the coefficient of determination of test data is %f.\n", test_score_sum / ((iter)+1));
-    printf("\nThe average of the coefficient of determination of test data is %f.\n", test_score_sum / ((iter)+1));
 
     return 0;
 }
