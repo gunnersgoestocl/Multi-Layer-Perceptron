@@ -598,9 +598,11 @@ void print_network(network_1layer *neural_network, FILE *fp_log){
 
 }
 
+
+
 // 7. 活性化関数```leakly_relu```を定義する
 //   - 引数には、```v```をとる
-//   - ```v```が0以上なら```v```を返し、0未満なら```0.01*v```を返す
+//   - ```v```が0以上なら```v```を返し、0未満なら```0.001*v```を返す
 
 double leakly_relu(double v) {
     if (v >= 0) {

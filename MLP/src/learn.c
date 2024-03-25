@@ -65,3 +65,188 @@ void load_Data(FILE *fp, int b_size, double **x, double **y, int o_dim, int *o_c
         }
     }   // 1バッチのデータ読み込み完了
 }
+
+// 8. 決定係数を計算する関数```calc_r2```を定義する
+//    - 引数には、目的変数値の二次元配列```y```と、出力の推定量の二次元配列```o```をとる
+//    - 各行ごとに決定係数を計算し、その平均値を返す
+//    - 決定係数は、線形回帰ではないので、 で計算する
+
+double calc_r2(double **y, double **o, int b_size, int v_dim) {
+    double r2 = 0.0;
+
+    // 今回は出力が1次元の場合のみを想定するため、ループも一重であるし、```v_dim```も使わない
+    double y_sum = 0.0;
+    // double o_sum = 0.0;
+    double y_mean = 0.0;
+    // double o_mean = 0.0;
+    double y_var = 0.0;
+    // double o_var = 0.0;
+    // double cov = 0.0;
+    double sq_hensa = 0.0;
+    for (int b = 0; b < b_size; b++) {
+        y_sum += y[b][0];   // 出力が1次元でない場合は要変更
+        // o_sum += o[b][0];
+    }
+    // o_mean = o_sum / b_size;
+    y_mean = y_sum / b_size;
+    for (int b = 0; b < b_size; b++) {
+        y_var += pow(y[b][0] - y_mean, 2);
+        // o_var += pow(o[b][0] - o_mean, 2);
+        sq_hensa += pow(y[b][0] - o[b][0], 2);
+    }
+    r2 = 1 - sq_hensa / y_var;
+    
+    return r2;
+}
+
+// データを読み込みながら、モデルの学習を行う関数
+// 引数は、(エポック数、ミニバッチ数、テストデータの読み込みタイミング、バッチサイズ、テストデータのバッチ数、テストデータの説明変数配列、テストデータの目的変数配列、説明変数の次元、説明変数の列番号配列、目的変数の次元、目的変数の列番号配列、ニューラルネットワークのポインタ、学習率、活性化関数、活性化関数の微分、プログラム確認フラグ、値表示フラグ、グラフ表示フラグ、データファイルポインタ、ログファイルポインタ、グラフファイルポインタ)
+void load_learn(int total_epoch, int iter, int CRVL, int b_size, int test_iter, double **x_test, double **y_test, int o_dim, int *o_col, int v_dim, int *v_col, network_1layer *neural_network, double alpha, double (*activator)(double), double (*activator_grad)(double), int program_confirmation, int show_values, int fprint_graph, FILE *fp, FILE *fp_log, FILE *fp_graph) {
+    char buf[256];  // ファイルの1行目を読み飛ばすためのバッファ
+    // テストデータの読み込み
+    int test_flag = 0;  // テストデータの読み込みが完了したら1にする
+
+    // 訓練データに対する決定係数の推移を追うための配列を初期化する
+    double *r2_epoch = (double *)malloc(sizeof(double) * (total_epoch));
+
+    // データを読み込んでニューラルネットワークを学習させる
+
+    // エポックループ
+    for (int epoch=0; epoch < total_epoch; epoch++) {
+        fprintf(fp_log, "\n===================================================\n");
+        fprintf(fp_log, "The epoch %d has started.\n", epoch+1);
+
+
+    // ミニバッチを取り出し、順伝播、誤差逆伝播を行う
+    for (int iter_num = 0; iter_num < iter; iter_num++) {
+
+        // テストデータの読み込み(データセットの最後の部分をテストデータにしない場合)
+        if (iter_num == CRVL && test_flag == 0) {
+            // テストデータの読み込みを関数化(テストデータの説明変数の値を```x_test```、目的変数の値を```y_test```に格納する)
+            load_testData(fp, &test_flag, b_size, test_iter, x_test, y_test, o_dim, o_col, v_dim, v_col);   // 1バッチのデータ読み込み完了
+            iter_num--;     // これはtest_flag == 0の時しか発動させてはいけない
+
+            if (program_confirmation == 1) {
+                fprintf(fp_log, "The test data has been loaded.\n");
+            }
+        }
+
+        // 訓練データの読み込み
+        else {
+        // バッチサイズ分の行を読み込むごとに、説明変数の値を```x```、目的変数の値を```y```に、それぞれ二次元配列のサイズを拡張した上で格納する
+        double **x = (double **)malloc(sizeof(double *) * (b_size));
+        double **y = (double **)malloc(sizeof(double *) * (b_size));
+        for (int b = 0; b < b_size; b++) {
+            x[b] = (double *)malloc(sizeof(double) * o_dim);
+            y[b] = (double *)malloc(sizeof(double) * v_dim);
+        }
+        // バッチサイズ分の行を読み込むごとに、説明変数の値を```x```、目的変数の値を```y```に格納する
+        load_Data(fp, b_size, x, y, o_dim, o_col, v_dim, v_col);     // 1バッチのデータ読み込み完了
+
+        if (program_confirmation == 1) {
+            fprintf(fp_log, "The data of epoch %d iteration %d has been loaded.\n", epoch+1, iter_num+1);
+        }
+
+        // 順伝播を行う
+        neural_network = forward_prop(fp_log, x, y, neural_network, leakly_relu, leakly_relu_grad, program_confirmation, show_values);
+        if (program_confirmation == 1) {
+            fprintf(fp_log, "The forward propagation of epoch %d iteration %d has been completed.\n", epoch+1, iter_num+1);
+        }
+        // fprintf(fp_log, "The forward propagation of epoch %d iteration %d has been completed.\n", epoch+1, iter_num+1);
+        //printf("neural_network is at %dth layer.\n", neural_network -> o_layer -> k);
+
+        // この内容は関数にする
+        double **y_hat = estimate(b_size, v_dim, neural_network);
+
+        if (program_confirmation == 1) {
+            fprintf(fp_log, "The estimation of epoch %d iteration %d has been completed. Deviation is shown below.\n", epoch+1, iter_num+1);
+            // y_hat(モデルによる推定値)とy(正解データ)との値の差を表示する
+            for (int b = 0; b < b_size; b++) {
+                for (int i = 0; i < v_dim; i++) {
+                    fprintf(fp_log, "%f ", y_hat[b][i] - y[b][i]);
+                }
+                // printf("\n");
+            }
+            fprintf(fp_log, "\n");
+        }
+        // ここまでエラーなし 12/30 22:53
+
+        // 誤差逆伝播を行いニューラルネットワークを更新する
+        neural_network = back_prop(fp_log, neural_network, alpha, b_size, program_confirmation, show_values);
+        if (program_confirmation == 1) {
+            fprintf(fp_log, "The back propagation of epoch %d iteration %d has been completed.\n", epoch+1, iter_num+1);
+        }
+
+        // 1イテレーションごとの決定係数を計算し表示する
+        double r2 = calc_r2(y, y_hat, b_size, v_dim);
+        fprintf(fp_log, "The coefficient of determination of epoch %d iteration %d is %f.\n", epoch+1, iter_num+1, r2);
+
+        // エポック終了時には、そのエポックの決定係数を配列に格納する
+        if (iter_num == (iter)-1) {
+            r2_epoch[epoch] = r2;
+        }
+
+        }   // else(訓練データを読んだ場合)の終わり
+        
+    }   // ミニバッチを取り出し、順伝播、誤差逆伝播を行うループの終わり
+
+
+    // テストデータの読み込み(データセットの最後の部分をテストデータにする場合)
+    if (test_flag == 0) {
+        // // テストデータの説明変数の値を```x_test```、目的変数の値を```y_test```に格納する
+        load_testData(fp, &test_flag, b_size, test_iter, x_test, y_test, o_dim, o_col, v_dim, v_col);   // 1バッチのデータ読み込み完了
+        if (program_confirmation == 1) {
+            fprintf(fp_log, "The test data has been loaded.\n");
+        }
+        // fprintf(fp_log, "The test data has been loaded.\n");
+    }
+    fseek(fp, 0, SEEK_SET);
+    fgets(buf, sizeof(buf), fp);    // この時点でfpは2行目を指している(データの1行目を読み飛ばした)
+
+    }   // エポックループの終わり
+
+    // 学習時の決定係数の推移をグラフで表示する
+    if (fprint_graph == 1) {
+        for (int i = 0; i < (total_epoch); i++) {
+            fprintf(fp_graph, "%d %f\n", i+1, r2_epoch[i]);
+        }
+        fprintf(fp_graph, "e\n");
+    }
+    ///////////////////////////////////この間を関数化する
+}
+
+
+// テストデータを当てはめた時の決定係数を計算し表示する関数
+double test(double **x_test, double **y_test, int b_size, int test_iter, int v_dim, network_1layer *neural_network, double (*activator)(double), double (*activator_grad)(double), int program_confirmation, int show_values, FILE *fp_log, FILE *fp_graph){
+    if (program_confirmation == 1) {
+        fprintf(fp_log, "Now calculating the coefficient of determination of test data...\n");
+    }
+    
+    neural_network = rewind_network(neural_network);   // ポインタを末尾から先頭に戻す
+    // テストデータをバッチサイズ分の行ずつ読み込んで、順伝播を行い、出力の推定量を二次元配列に格納する
+    double **y_hat = (double **)malloc(sizeof(double *) * (b_size) * (test_iter));
+    for (int b = 0; b < (b_size) * (test_iter); b++) {
+        y_hat[b] = (double *)malloc(sizeof(double) * v_dim);
+    }
+    // テストデータをバッチサイズ分の行ずつ読み込んで、順伝播を行い、出力の推定量を二次元配列に格納する
+    for (int iter_num = 0; iter_num < test_iter; iter_num++) {
+        neural_network = forward_prop(fp_log, &x_test[iter_num*(b_size)], &y_test[iter_num*(b_size)], neural_network, leakly_relu, leakly_relu_grad, program_confirmation, show_values);
+        estimate_sub(b_size, iter_num, v_dim, neural_network, y_hat);
+    }
+
+    // テストデータに対する当てはめ値を表示する
+    fprintf(fp_log, "The value estimated from test data is below : \n");
+    for (int b = 0; b < (b_size)*(test_iter); b++) {
+        for (int i = 0; i < v_dim; i++) {
+            fprintf(fp_log, "%f ", y_hat[b][i]);
+        }
+        // printf("\n");
+    }
+    fprintf(fp_log, "\n");
+
+    // テストデータの正解値と当てはめ値から決定係数を計算し表示する
+    double r2 = calc_r2(y_test, y_hat, (b_size)*(test_iter), v_dim);
+    fprintf(fp_log, "The coefficient of determination of test data is %f.\n", r2);
+
+    return r2;
+}

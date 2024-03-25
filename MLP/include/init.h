@@ -72,8 +72,10 @@ network_1layer *forward_prop(FILE *fp_log, double **x, double **y, network_1laye
 
 network_1layer *back_prop(FILE *fp_log, network_1layer *neural_network, double alpha, int b_size, int program_confirmation, int show_values);
 
-//ニューラルネットワークを表す構造体へのポインタ、ネットワークの格納する値をグラフに可視化して出力するファイルのポインタを引数に取る
+// ニューラルネットワークを表す構造体へのポインタ、ネットワークの格納する値をグラフに可視化して出力するファイルのポインタを引数に取る
 void print_network(network_1layer *neural_network, FILE *fp_log);
+// 学習済みのネットワークに対して、説明変数の値を入力して、目的変数の値を出力する関数
+
 
 double leakly_relu(double v);
 double leakly_relu_grad(double v);
