@@ -104,40 +104,11 @@ void CRVL(int total_epoch, int iter, int b_size, int test_iter, int D, int *N, i
 
     // 交差検証開始(CRVL は交差検証の何フェーズ目かを表す)
     for (int CRVL = 0; CRVL < (iter)+1; CRVL++) {  
-    
-        // ニューラルネットワークを初期化する(関数化済み)
-        network_1layer *neural_network = init_network(o_dim, v_dim, b_size, D, N, fp_log, program_confirmation);
-
-        // ニューラルネットワークをネットワークグラフで表示する
-        if (show_values == 1) {
-            print_network(neural_network, fp_log);
-        }
-
-        // テストデータの説明変数の値を```x```、目的変数の値を```y```に、それぞれ二次元配列のサイズを拡張した上で格納する
-        double **x_test = (double **)malloc(sizeof(double *) * (b_size) * (test_iter));  // test_sizeにするとエラーが出る(当たり前)
-        double **y_test = (double **)malloc(sizeof(double *) * (b_size) * (test_iter));
-        for (int b = 0; b < (b_size) * (test_iter); b++) {
-            x_test[b] = (double *)malloc(sizeof(double) * o_dim);
-            y_test[b] = (double *)malloc(sizeof(double) * v_dim);
-        }
-        
-        if (program_confirmation == 1) {
-            fprintf(fp_log, "The test data has been initialized.\n");
-        }
-
-        // データを読み込みながら、モデルの学習を行う
-        // x_test, y_testにはテストデータが格納され、neural_networkの重みが更新される
-        load_learn(total_epoch, iter, CRVL, b_size, test_iter, x_test, y_test, o_dim, o_col, v_dim, v_col, neural_network, alpha, leakly_relu, leakly_relu_grad, program_confirmation, show_values, fprint_graph, fp, fp_log, fp_graph);
-
-        // テストデータを当てはめた時の決定係数を計算し表示する関数
-        double r2 = test(x_test, y_test, b_size, test_iter, v_dim, neural_network, leakly_relu, leakly_relu_grad, program_confirmation, show_values, fp_log, fp_graph);
+        // CRVL番目のバッチから指定された行数を、テストデータとして除いたデータを、学習データとして読み込み、モデルの学習を行い、テストデータの決定係数を計算する
+        double r2 = learn_set(total_epoch, iter, CRVL, b_size, test_iter, D, N, o_dim, o_col, v_dim, v_col, alpha, leakly_relu, leakly_relu_grad, program_confirmation, show_values, fprint_graph, fp, fp_log, fp_graph);
 
         // テストデータの決定係数を配列に格納する
         test_scores[CRVL] = r2;
-
-        // メモリの解放
-        rewind_network(neural_network); // ポインタを末尾から先頭に戻す
-        free_network(neural_network);
 
     } // 交差検証終了
 
@@ -150,6 +121,41 @@ void CRVL(int total_epoch, int iter, int b_size, int test_iter, int D, int *N, i
     }
     fprintf(fp_log, "The average of the coefficient of determination of test data is %f.\n", test_score_sum / ((iter)+1));
     printf("\nThe average of the coefficient of determination of test data is %f.\n", test_score_sum / ((iter)+1));
+}
+
+// 設計したモデルについて、ニューロンとネットワークの初期化、データの読み込み、学習、テストを一体として行う関数
+double learn_set(int total_epoch, int iter, int CRVL, int b_size, int test_iter, int D, int *N, int o_dim, int *o_col, int v_dim, int *v_col, double alpha, double (*activator)(double), double (*activator_grad)(double), int program_confirmation, int show_values, int fprint_graph, FILE *fp, FILE *fp_log, FILE *fp_graph){
+    // ニューラルネットワークを初期化する(関数化済み)
+    network_1layer *neural_network = init_network(o_dim, v_dim, b_size, D, N, fp_log, program_confirmation);
+    // ニューラルネットワークをネットワークグラフで表示する
+    if (show_values == 1) {
+        print_network(neural_network, fp_log);
+    }
+
+    // テストデータの説明変数の値を```x```、目的変数の値を```y```に、それぞれ二次元配列のサイズを拡張した上で格納する
+    double **x_test = (double **)malloc(sizeof(double *) * (b_size) * (test_iter));  // test_sizeにするとエラーが出る(当たり前)
+    double **y_test = (double **)malloc(sizeof(double *) * (b_size) * (test_iter));
+    for (int b = 0; b < (b_size) * (test_iter); b++) {
+        x_test[b] = (double *)malloc(sizeof(double) * o_dim);
+        y_test[b] = (double *)malloc(sizeof(double) * v_dim);
+    }
+    if (program_confirmation == 1) {
+        fprintf(fp_log, "The test data has been initialized.\n");
+    }
+
+    // データを読み込みながら、モデルの学習を行う
+    // x_test, y_testにはテストデータが格納され、neural_networkの重みが更新される
+    load_learn(total_epoch, iter, CRVL, b_size, test_iter, x_test, y_test, o_dim, o_col, v_dim, v_col, neural_network, alpha, leakly_relu, leakly_relu_grad, program_confirmation, show_values, fprint_graph, fp, fp_log, fp_graph);
+
+    // テストデータを当てはめた時の決定係数を計算し表示する関数
+    double r2 = test(x_test, y_test, b_size, test_iter, v_dim, neural_network, leakly_relu, leakly_relu_grad, program_confirmation, show_values, fp_log, fp_graph);
+    fprintf(fp_log, "The coefficient of determination of test data is %f.\n", r2);
+
+    // メモリの解放
+    rewind_network(neural_network); // ポインタを末尾から先頭に戻す
+    free_network(neural_network);
+
+    return r2;
 }
 
 // データを読み込みながら、モデルの学習を行う関数

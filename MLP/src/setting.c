@@ -8,11 +8,13 @@ void set_variables(FILE *fp, FILE *fp_log, int *v_dim, int *v_col, int *o_dim, i
     int num_var = 0;    // 変数の総数
     fgets(buf, sizeof(buf), fp);
     char *token = strtok(buf, ";");
+    printf("The variables are ");
     while (token != NULL) {
         num_var++;
-        printf("%s\n", token);
+        printf("%s ", token);
         token = strtok(NULL, ";\n");
     }
+    printf("\n");
 
     // <<<<<<<<<<<<<<<<<目的変数名の取得>>>>>>>>>>>>>>>>>
 
@@ -27,44 +29,6 @@ void set_variables(FILE *fp, FILE *fp_log, int *v_dim, int *v_col, int *o_dim, i
     token = strtok(buf, ";\n");
 
     int col = 0;    // 列番号のカーソル
-    
-    // while (token != NULL) {
-    //     // printf("comparing with %s: %d\n", token, strcmp(token, objective));
-    //     if (strcmp(token, objective) == 0) {
-    //         v_col = col;
-    //         printf("register success\n");
-    //         break;
-    //     }
-    //     token = strtok(NULL, ";\n");
-    //     col++;
-    // }
-    // // 目的変数の列番号が見つからなかったら正しい変数名を入力するよう指示する
-    // while (v_col == -1) {
-    //     printf("Cannot find the objective variable. Please input the correct name of the objective variable.\n");
-    //     // objectiveの配列を初期化する
-    //     int i=0;
-    //     while (objective[i] != '\0') {
-    //         objective[i] = '\0';
-    //         i++;
-    //     }
-    //     // char objective[256];
-    //     scanf("%[^\n]%*1[\n]", objective);
-    //     printf("You input %s.\n", objective);
-    //     // 目的変数の変数名が含まれる列番号を調べる
-    //     fseek(fp, 0, SEEK_SET);
-    //     fgets(buf, sizeof(buf), fp);
-    //     token = strtok(buf, ";\n");
-    //     col = 0;    
-    //     while (token != NULL) {
-    //         if (strcmp(token, objective) == 0) {
-    //             v_col = col;
-    //             printf("register success\n");
-    //             break;
-    //         }
-    //         token = strtok(NULL, ";\n");
-    //         col++;
-    //     }
-    // }
 
     while (strcmp(objective, "END") != 0 || *v_dim == 0) {
         // 目的変数の列番号を調べる
@@ -175,8 +139,8 @@ void set_variables(FILE *fp, FILE *fp_log, int *v_dim, int *v_col, int *o_dim, i
     }   // while (strcmp(objective, "") != 0) の終わり(目的変数の入力の終わり)
 
     // logファイルに目的変数名を書き込む
-    fprintf(fp_log, "objective variable : %s.\n", objective);
-    // o_colの要素に対応する変数名をfpの1行目から取得して書き込むとともに、リスト"explanatory_list"にも格納する
+    fprintf(fp_log, "objective variable : ");
+    // o_colの要素に対応する変数名をfpの1行目から取得して書き込むとともに、リスト"objective_list"にも格納する
     char **objective_list = (char **)malloc(sizeof(char *) * *v_dim);
     for (int i = 0; i < *v_dim; i++) {
         fseek(fp, 0, SEEK_SET);
@@ -360,10 +324,11 @@ void set_variables(FILE *fp, FILE *fp_log, int *v_dim, int *v_col, int *o_dim, i
 }
 
 int *design_network(FILE *fp_log, int *D, int o_dim, int v_dim, double *alpha){
+    printf("Start designing the neural network.\n");
     // ニューラルネットワークの層の数、各層のニューロンの個数をスペース区切りでコマンドラインから読み込む
-    printf("Input the number of layers: ");
+    printf("Input the number of middle layers (& put ENTER): ");
     scanf("%d", D);
-    printf("\nInput the number of neurons in each layer (put ENTER everytime!): ");
+    printf("\nInput the number of neurons in each middle layer (put ENTER everytime!):\n");
     int *N = (int *)malloc(sizeof(int) * (*D));    // 各層のニューロンの個数を格納する配列
     for (int i = 0; i < *D; i++) {
         scanf("%d", &N[i]);
@@ -401,21 +366,19 @@ void set_learning(FILE *fp, FILE *fp_log, int *data_size, int *b_size, int *iter
     // データサイズの取得
     // データの行数を数える
     *data_size = -1; // 1行目は変数名なので、データの行数は1つ少ない
-    printf("A\n");
     while (fgets(buf, sizeof(buf), fp) != NULL) {
         (*data_size)++;
     }
-    printf("B\n");
     fseek(fp, 0, SEEK_SET);
-    printf("C\n");
     fgets(buf, sizeof(buf), fp);    // この時点でfpは2行目を指している(データの1行目を読み飛ばした)
-    printf("D\n");
     printf("The number of data is %d.\n", *data_size);
     fprintf(fp_log, "The total number of data : %d.\n", *data_size);
 
     // バッチサイズとイテレーション数をコマンドラインから読み込む
-    printf("Input the batch size and the number of iterations: ");
-    scanf("%d %d", b_size, iter);
+    printf("Input the batch size: ");
+    scanf("%d", b_size);
+    printf("Input the number of iterations: ");
+    scanf("%d", iter);
 
     printf("The batch size is %d.\n", *b_size);
     fprintf(fp_log, "The batch size : %d.\n", *b_size);

@@ -2,20 +2,6 @@ CC = gcc # C compiler
 AR = ar # archiver
 TODAY   = $(shell date "+%Y%m%d%H%M%S")
 
-all: src/adv_regression.c src/init.c
-	make init.o
-	make adv_regression.o
-	make lib
-	make demo
-	make sample
-
-wine: src/adv_regression.c src/init.c
-	make init.o
-	make adv_regression.o
-	make lib
-	make demo
-	make do
-
 separate: src/adv_regression.c src/init.c src/setting.c src/learn.c
 	make init.o
 	make adv_regression.o
@@ -25,11 +11,20 @@ separate: src/adv_regression.c src/init.c src/setting.c src/learn.c
 	make demo
 	make sample
 
+wine: src/adv_regression.c src/init.c
+	make init.o
+	make adv_regression.o
+	make setting.o
+	make learn.o
+	make lib2
+	make demo
+	make do
+
 do: bin/demo
-	bin/demo wine+quality/winequality-red.csv log/wine-red_output_$(TODAY).txt log/wine-red_output_$(TODAY)_graph
+	bin/demo data/wine+quality/winequality-red.csv log/wine-red_output_$(TODAY).txt log/wine-red_output_$(TODAY)_graph
 
 sample: bin/demo
-	bin/demo sample.txt log/sample_output_$(TODAY).txt log/sample_output_$(TODAY)_graph
+	bin/demo data/sample.txt log/sample_output_$(TODAY).txt log/sample_output_$(TODAY)_graph
 
 demo: lib/libadv_regression.a
 	$(CC) -o bin/demo -L./lib -ladv_regression
