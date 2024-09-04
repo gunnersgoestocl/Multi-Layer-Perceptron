@@ -1,22 +1,37 @@
+/*learn.h*/
 #include <stdio.h>
 #include <stdlib.h>
 #include <math.h>
 #include <string.h>
 #include "init.h"
+#include "setting.h"
+#include "eval_func.h"
 
 #ifndef _LEARN_H_
 #define _LEARN_H_
 
-network_1layer  *init_network(int o_dim, int v_dim, int b_size, int D, int *N, FILE *fp_log, int program_confirmation);
-void load_testData(FILE *fp, int *test_flag, int b_size, int test_iter, double **x_test, double **y_test, int o_dim, int *o_col, int v_dim, int *v_col);
-void load_Data(FILE *fp, int b_size, double **x, double **y, int o_dim, int *o_col, int v_dim, int *v_col);
+/* ニューラルネットワークの初期化 */
+network_1layer *init_network(config *setting, model *M);
 
-double calc_r2(double **y, double **o, int b_size, int v_dim);
-double test(double **x_test, double **y_test, int b_size, int test_iter, int v_dim, network_1layer *neural_network, double (*activator)(double), double (*activator_grad)(double), int program_confirmation, int show_values, FILE *fp_log, FILE *fp_graph);
+/* テストデータを読み込む (テストデータの位置に対処するためのフラグ操作が存在) */
+void load_testData(config *setting, int *test_flag, double **x_test, double **y_test);
 
-double learn_set(int total_epoch, int iter, int CRVL, int b_size, int test_iter, int D, int *N, int o_dim, int *o_col, int v_dim, int *v_col, double alpha, double (*activator)(double), double (*activator_grad)(double), int program_confirmation, int show_values, int fprint_graph, FILE *fp, FILE *fp_log, FILE *fp_graph);
-void load_learn(int total_epoch, int iter, int CRVL, int b_size, int test_iter, double **x_test, double **y_test, int o_dim, int *o_col, int v_dim, int *v_col, network_1layer *neural_network, double alpha, double (*activator)(double), double (*activator_grad)(double), int program_confirmation, int show_values, int fprint_graph, FILE *fp, FILE *fp_log, FILE *fp_graph);
-void CRVL(int total_epoch, int iter, int b_size, int test_iter, int D, int *N, int o_dim, int *o_col, int v_dim, int *v_col, double alpha, double (*activator)(double), double (*activator_grad)(double), int program_confirmation, int show_values, int fprint_graph, FILE *fp, FILE *fp_log, FILE *fp_graph);
+/* バッチサイズ分のデータを読み込む */
+void load_Data(config *setting, double **x, double **y);
 
+/* 学習済みのモデルについて、テストデータを与えて、評価値を返す */
+double test(config *setting, double **x_test, double **y_test, network_1layer *neural_network);
+
+/* 設計したモデルについて、初期化・データの読み込み・学習・テストを行い、評価値を返す */
+double learn_set(config *setting, model *M);
+
+/* 設計したモデルについて、データを与えて、学習を行い、学習中の評価値の推移を出力し、必要ならテストデータを抽出する */
+void load_learn(config *setting, model *M, network_1layer *neural_network, double **x_test, double **y_test);
+
+// 設計したモデルについて、データを与えて、交差検証法により性能を評価する
+double CRVL(config *setting, model *M);
+
+/* 学習以降のプログラムを実行する関数 */
+void run(config *setting, model *M);
 
 #endif

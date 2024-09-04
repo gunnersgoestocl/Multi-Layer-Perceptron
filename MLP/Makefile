@@ -2,51 +2,34 @@ CC = gcc # C compiler
 AR = ar # archiver
 TODAY   = $(shell date "+%Y%m%d%H%M%S")
 
-separate: src/adv_regression.c src/init.c src/setting.c src/learn.c
-	make init.o
-	make adv_regression.o
-	make setting.o
-	make learn.o
-	make lib2
-	make demo
-	make sample
+# Output directories
+BIN_DIR = bin
+LIB_DIR = lib
+SRC_DIR = src
+INCLUDE_DIR = include
 
-wine: src/adv_regression.c src/init.c
-	make init.o
-	make adv_regression.o
-	make setting.o
-	make learn.o
-	make lib2
-	make demo
-	make do
+# Source files and object files
+SRCS = $(wildcard $(SRC_DIR)/*.c)
+OBJS = $(SRCS:.c=.o)
 
-do: bin/demo
-	bin/demo data/wine+quality/winequality-red.csv log/wine-red_output_$(TODAY).txt log/wine-red_output_$(TODAY)_graph
+# Target binaries
+TARGET = $(BIN_DIR)/demo
 
-sample: bin/demo
-	bin/demo data/sample.txt log/sample_output_$(TODAY).txt log/sample_output_$(TODAY)_graph
+# Static library
+LIBRARY = $(LIB_DIR)/libadv_regression.a
 
-demo: lib/libadv_regression.a
-	$(CC) -o bin/demo -L./lib -ladv_regression
+# Build the demo executable
+$(TARGET): $(LIBRARY)
+	$(CC) -v -o $(TARGET) -L$(LIB_DIR) -ladv_regression -lm
 
-lib: src/init.o  src/adv_regression.o
-	$(AR) rsv lib/libadv_regression.a src/init.o src/adv_regression.o
+# Archive the library
+$(LIBRARY): $(OBJS)
+	$(AR) rsv $@ $(OBJS)
 
-lib2: src/init.o  src/adv_regression.o src/setting.o src/learn.o
-	$(AR) rsv lib/libadv_regression.a src/init.o src/adv_regression.o src/setting.o src/learn.o
-
-init.o: src/init.c
-	$(CC) -I./include -c -o src/init.o src/init.c 
-
-setting.o: src/setting.c
-	$(CC) -I./include -c -o src/setting.o src/setting.c
-
-learn.o: src/learn.C
-	$(CC) -I./include -c -o src/learn.o src/learn.c
-
-adv_regression.o: src/adv_regression.c
-	$(CC) -I./include -c -o src/adv_regression.o src/adv_regression.c 
+# Compile the object files
+%.o: %.c
+	$(CC) -I$(INCLUDE_DIR) -c -o $@ $<
 
 .PHONY: clean
 clean:
-	rm src/*.o lib/*.a bin/*
+	rm -f $(SRC_DIR)/*.o $(LIB_DIR)/*.a $(BIN_DIR)/*
